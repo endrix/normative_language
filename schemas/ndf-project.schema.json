@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pto-isa.org/ndf/schemas/ndf-project-0.2.json",
+  "title": "NDF project manifest",
+  "type": "object",
+  "required": ["format_version", "project", "roots", "id_prefixes"],
+  "properties": {
+    "format_version": {"const": "0.2"},
+    "project": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+    "roots": {"type": "array", "items": {"type": "string"}},
+    "id_prefixes": {"type": "array", "items": {"type": "string"}},
+    "domains": {"type": "array", "items": {"type": "string"}},
+    "policies": {"type": "object"}
+  },
+  "additionalProperties": false
+}

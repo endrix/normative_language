@@ -1,0 +1,10 @@
+format_version: "0.2"
+project: fixture
+roots:
+  - docs/**/*.md
+id_prefixes:
+  - DOC
+  - PIPE
+domains:
+  - core
+policies: {}
