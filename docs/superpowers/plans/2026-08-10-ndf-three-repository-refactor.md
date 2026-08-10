@@ -6,7 +6,7 @@
 
 **Architecture:** Markdown, ASL, source, test, and evidence files remain Git-tracked sources of truth. Parser adapters normalize them into a versioned canonical IR, generic and project rules validate that IR, and a deterministic SQLite database provides disposable query indexes. The dependency direction is strictly `DavinciOO -> normative_language`, `DavinciOO -> pto-spec`, and `pto-spec -> normative_language`; no upstream repository imports DavinciOO.
 
-**Tech Stack:** Python 3.11+, `dataclasses`, `enum.StrEnum`, `argparse`, `sqlite3`, `json`, `pathlib`, PyYAML 6.x, `unittest`, Markdown, Git, Git submodules, GitHub Actions.
+**Tech Stack:** Rust 1.94.0, Cargo edition 2024, Clap, Serde, Rusqlite with bundled SQLite, Markdown, Git, Git submodules, GitHub Actions; repository-local Python tests may invoke the NDF binary but NDF itself has no Python runtime.
 
 ## Global Constraints
 
@@ -22,6 +22,17 @@
 - Existing DavinciOO debt enters an owned, expiring baseline; every new or worsened diagnostic fails CI immediately.
 - Keep English and Chinese NDF specifications synchronized in the same commit.
 - Execute the plan inline, in repository-isolated worktrees, with one repository and one task active at a time.
+
+## Rust Compiler Migration Override
+
+Tasks 1 through 8 below record the completed Python prototype and must not be
+used to publish or pin NDF. Before Task 9, execute
+[`2026-08-10-ndf-rust-compiler-migration.md`](2026-08-10-ndf-rust-compiler-migration.md)
+in full. The first `v0.1.0` tag points to its merged Rust release commit.
+
+Downstream repositories build NDF with `cargo build --locked --release` and call
+its versioned JSON CLI. They must not install `requirements-lock.txt`, run pip
+for NDF, or import `ndf` as a Python module.
 
 ---
 
@@ -739,9 +750,11 @@ ASL roots, `PTO-*` prefixes, and the PTO ASL adapter.
 
 - [ ] **Step 2: Write the failing full-tree parity test**
 
-Load `scripts/ndf.py` as old oracle and `tools/ndf/src/ndf` as candidate.
-Compare canonical clause IDs, bodies, paths, lines, references, and normalized
-validation errors. Keep field translation explicit in the test.
+Load `scripts/ndf.py` as the old oracle. Build the pinned Rust candidate with
+`cargo build --manifest-path tools/ndf/Cargo.toml --locked --release` and invoke
+`tools/ndf/target/release/ndf` through `subprocess`. Compare canonical clause
+IDs, bodies, paths, lines, references, and normalized validation errors. Keep
+field translation explicit in the test; do not import candidate internals.
 
 - [ ] **Step 3: Run the parity test**
 
@@ -805,13 +818,11 @@ Expected: FAIL only on the new wrapper contract.
 
 - [ ] **Step 3: Replace the wrapper**
 
-Import the pinned source locally:
+Make `scripts/check-ndf` execute the pinned binary:
 
-```python
-NDF_SRC = ROOT / "tools" / "ndf" / "src"
-sys.path.insert(0, str(NDF_SRC))
-from ndf.cli import main as ndf_main
-raise SystemExit(ndf_main(["check", "--root", str(ROOT), "--format", "human"]))
+```bash
+cargo build --manifest-path "$ROOT/tools/ndf/Cargo.toml" --locked --release -p ndf-cli
+exec "$ROOT/tools/ndf/target/release/ndf" check --root "$ROOT" --format json
 ```
 
 Keep `ndf_legacy.py` for one experimental compatibility window. Parity tests
@@ -819,12 +830,11 @@ run it; normal CI does not.
 
 - [ ] **Step 4: Update documentation and checkout gates**
 
-Document pin updates. Ensure CI initializes `tools/ndf` recursively and
-installs the pinned runtime before `make pr-check`:
+Document pin updates. Ensure CI initializes `tools/ndf` recursively and builds
+the pinned runtime before `make pr-check`:
 
 ```bash
-python3 -m pip install -r tools/ndf/requirements-lock.txt
-python3 -m pip install -e tools/ndf --no-deps
+cargo build --manifest-path tools/ndf/Cargo.toml --locked --release -p ndf-cli
 ```
 
 `make pr-check` must still run `./scripts/check-ndf`.
@@ -897,14 +907,15 @@ Never baseline duplicate explicit IDs, invalid locks, or non-determinism.
 
 - [ ] **Step 5: Implement the build wrapper**
 
-Import only `toolchains/ndf/src`, support `--check`, `--changed`, and `--output`,
-write under `.ndf-cache/` by default, and fail on new/worsened diagnostics.
+Invoke `toolchains/ndf/target/release/ndf` as a subprocess, parse only its
+versioned JSON envelope, support `--check`, `--changed`, and `--output`, write
+under `.ndf-cache/` by default, and fail on new/worsened diagnostics. Do not
+import or duplicate NDF compiler logic.
 
 - [ ] **Step 6: Verify and commit**
 
 ```bash
-python3 -m pip install -r toolchains/ndf/requirements-lock.txt
-python3 -m pip install -e toolchains/ndf --no-deps
+cargo build --manifest-path toolchains/ndf/Cargo.toml --locked --release -p ndf-cli
 python3 toolchains/scripts/build_ndf_index.py --check
 pytest srcs/tests/unit/test_ndf_project_contract.py -q
 git diff --check
@@ -950,16 +961,16 @@ Expected: FAIL with missing contract phrases.
 - [ ] **Step 3: Add guidance and the local hook**
 
 Add a local pre-commit hook for changed docs/NDF/config. It runs changed-scope
-validation and never writes files. Configure the hook as an isolated Python
-hook with `PyYAML==6.0.2` as an additional dependency. Keep full validation in
-CI.
+validation and never writes files. Configure it as a repository-local system
+hook that calls the project wrapper; the wrapper invokes the pinned Rust binary.
+Keep full validation in CI.
 
 - [ ] **Step 4: Add the CI job**
 
-Checkout recursive submodules, use Python 3.12, install
-`toolchains/ndf/requirements-lock.txt` plus the local NDF package with
-`--no-deps`, then run project-contract tests and full index check. Upload JSON
-diagnostics on failure, not SQLite.
+Checkout recursive submodules, install Rust 1.94.0 and Python 3.12, build NDF
+with `cargo build --manifest-path toolchains/ndf/Cargo.toml --locked --release`,
+then run project-contract tests and the full index check. Upload JSON diagnostics
+on failure, not SQLite.
 
 - [ ] **Step 5: Verify and commit**
 
@@ -1206,22 +1217,21 @@ Run from clean worktrees after upstream pins merge:
 
 ```bash
 # PTO-ISA/normative_language
-python3 -m pip install -r requirements-lock.txt
-python3 -m pip install -e . --no-deps
-python3 -m unittest discover -s tests -p 'test_*.py'
-ndf check --root tests/fixtures/markdown/project --format json
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features --locked
+cargo build --workspace --release --locked
+scripts/ndf check --root tests/fixtures/markdown/project --format json
 
 # PTO-ISA/pto-spec
 git submodule update --init --recursive
-python3 -m pip install -r tools/ndf/requirements-lock.txt
-python3 -m pip install -e tools/ndf --no-deps
+cargo build --manifest-path tools/ndf/Cargo.toml --locked --release -p ndf-cli
 make pr-check
 
 # hengliao1972/DavinciOO
 git submodule update --init --recursive
 python3 -m pip install -e ".[dev]"
-python3 -m pip install -r toolchains/ndf/requirements-lock.txt
-python3 -m pip install -e toolchains/ndf --no-deps
+cargo build --manifest-path toolchains/ndf/Cargo.toml --locked --release -p ndf-cli
 python3 toolchains/scripts/build_ndf_index.py --check
 python3 toolchains/scripts/generate_docs_navigation.py --check
 pytest srcs/tests/unit -q
