@@ -72,6 +72,23 @@ fn must_and_information_language_are_checked_in_both_directions() {
 }
 
 #[test]
+fn must_keyword_rule_applies_only_to_normative_statement_kinds() {
+    let mut definition = requirement("A CELL is one tile register.", Some("core"));
+    definition.id = NodeId::new("fixture", "DEF-CELL-001").unwrap();
+    definition.kind = NodeKind::Definition;
+    let mut architecture = requirement("The core has four PEs.", Some("core"));
+    architecture.id = NodeId::new("fixture", "ARCH-TOP-001").unwrap();
+    architecture.kind = NodeKind::Architecture;
+    let graph = Graph {
+        nodes: vec![definition, architecture],
+        edges: Vec::new(),
+        diagnostics: Vec::new(),
+    };
+
+    assert_eq!(codes(&graph), Vec::<String>::new());
+}
+
+#[test]
 fn lifecycle_and_owner_invariants_are_enforced() {
     let mut node = requirement("The pipeline MUST issue in order.", None);
     node.status = LifecycleStatus::Draft;

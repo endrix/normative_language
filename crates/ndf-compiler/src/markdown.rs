@@ -25,6 +25,8 @@ const EDGE_FIELDS: &[&str] = &[
     "supersedes",
     "references",
     "evidenced-by",
+    "couples-with",
+    "blocks-by",
 ];
 const CANONICAL_FIELDS: &[&str] = &[
     "kind",
@@ -33,6 +35,18 @@ const CANONICAL_FIELDS: &[&str] = &[
     "domain",
     "status",
     "owner",
+];
+const ATTRIBUTE_FIELDS: &[&str] = &[
+    "since",
+    "date",
+    "author",
+    "unit",
+    "default",
+    "explore",
+    "origin",
+    "origin-status",
+    "model",
+    "superseded-by",
 ];
 
 pub fn parse_markdown(
@@ -183,6 +197,20 @@ pub fn parse_markdown(
             builder.add_diagnostic(invalid_value(&relative_path, metadata_index + 1, "status"));
             continue;
         };
+        let mut attributes = BTreeMap::new();
+        for field in ATTRIBUTE_FIELDS {
+            if let Some(value) = metadata.get(*field) {
+                attributes.insert((*field).to_owned(), value.clone());
+            }
+        }
+        if let Some(value) = metadata.get("derived-from")
+            && value
+                .split(',')
+                .map(str::trim)
+                .any(|target| NodeId::parse(target, Some(&project.project)).is_err())
+        {
+            attributes.insert("derived-from".to_owned(), value.clone());
+        }
         let node = Node {
             id: NodeId::new(&project.project, local_id)
                 .map_err(|error| CompilerError::Contract(error.to_string()))?,
@@ -201,7 +229,7 @@ pub fn parse_markdown(
                     .unwrap_or_else(|| owner.clone()),
             ),
             body: body(&lines, metadata_index + 1),
-            attributes: BTreeMap::new(),
+            attributes,
         };
         let source_id = node.id.clone();
         builder.add_node(node);
@@ -210,11 +238,15 @@ pub fn parse_markdown(
                 continue;
             };
             for target in targets.split(',').map(str::trim) {
+                let target_id = match NodeId::parse(target, Some(&project.project)) {
+                    Ok(target_id) => target_id,
+                    Err(_) if *edge_type == "derived-from" => continue,
+                    Err(error) => return Err(CompilerError::Contract(error.to_string())),
+                };
                 builder.add_edge(
                     Edge::new(
                         source_id.clone(),
-                        NodeId::parse(target, Some(&project.project))
-                            .map_err(|error| CompilerError::Contract(error.to_string()))?,
+                        target_id,
                         *edge_type,
                         Some(
                             SourceSpan::new(&relative_path, (metadata_index + 1) as u32)
@@ -378,21 +410,22 @@ fn parse_metadata(
     else {
         return (None, Vec::new());
     };
+    let tokens = metadata_tokens(content);
+    if tokens.is_empty() && !content.trim().is_empty() {
+        return (
+            None,
+            vec![diagnostic(
+                "NDF-MD-001",
+                DiagnosticSeverity::Error,
+                format!("invalid NDF metadata token: {}", content.trim()),
+                path,
+                line_number,
+                "Write metadata as key=value tokens.",
+            )],
+        );
+    }
     let mut metadata = BTreeMap::new();
-    for token in content.split_whitespace() {
-        let Some((name, value)) = token.split_once('=') else {
-            return (
-                None,
-                vec![diagnostic(
-                    "NDF-MD-001",
-                    DiagnosticSeverity::Error,
-                    format!("invalid NDF metadata token: {token}"),
-                    path,
-                    line_number,
-                    "Write metadata as key=value tokens.",
-                )],
-            );
-        };
+    for (name, value) in tokens {
         if metadata.contains_key(name) {
             return (
                 None,
@@ -411,6 +444,7 @@ fn parse_metadata(
     let allowed: BTreeSet<_> = CANONICAL_FIELDS
         .iter()
         .chain(EDGE_FIELDS)
+        .chain(ATTRIBUTE_FIELDS)
         .chain(["level", "layer"].iter())
         .copied()
         .collect();
@@ -433,15 +467,74 @@ fn parse_metadata(
     (Some(metadata), Vec::new())
 }
 
+fn metadata_tokens(content: &str) -> Vec<(&str, &str)> {
+    let bytes = content.as_bytes();
+    let mut fields = Vec::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        let name_start = index;
+        while index < bytes.len() && (bytes[index].is_ascii_alphanumeric() || bytes[index] == b'-')
+        {
+            index += 1;
+        }
+        if name_start == index || index >= bytes.len() || bytes[index] != b'=' {
+            break;
+        }
+        let name = &content[name_start..index];
+        index += 1;
+        let value_start = index;
+        let mut next_field = bytes.len();
+        let mut cursor = index;
+        while cursor < bytes.len() {
+            if bytes[cursor].is_ascii_whitespace() {
+                let mut candidate = cursor;
+                while candidate < bytes.len() && bytes[candidate].is_ascii_whitespace() {
+                    candidate += 1;
+                }
+                let candidate_start = candidate;
+                while candidate < bytes.len()
+                    && (bytes[candidate].is_ascii_alphanumeric() || bytes[candidate] == b'-')
+                {
+                    candidate += 1;
+                }
+                if candidate_start < candidate
+                    && candidate < bytes.len()
+                    && bytes[candidate] == b'='
+                {
+                    next_field = cursor;
+                    break;
+                }
+            }
+            cursor += 1;
+        }
+        fields.push((name, content[value_start..next_field].trim()));
+        index = next_field;
+    }
+    fields
+}
+
 fn normalize_metadata(
     mut metadata: BTreeMap<String, String>,
     path: &str,
     line: u32,
 ) -> (BTreeMap<String, String>, Option<Diagnostic>) {
     let mut migrated = false;
-    if metadata.get("kind").is_some_and(|value| value == "req") {
-        metadata.insert("kind".to_owned(), "requirement".to_owned());
-        migrated = true;
+    if let Some(kind) = metadata.get("kind").cloned() {
+        let canonical = match kind.as_str() {
+            "req" => Some("requirement"),
+            "arch" => Some("architecture"),
+            "def" => Some("definition"),
+            "verif" => Some("verification"),
+            "info" => Some("information"),
+            _ => None,
+        };
+        if let Some(canonical) = canonical {
+            metadata.insert("kind".to_owned(), canonical.to_owned());
+            migrated = true;
+        }
     }
     if let Some(value) = metadata.remove("level") {
         metadata.insert("modality".to_owned(), value);
@@ -456,6 +549,15 @@ fn normalize_metadata(
         .is_some_and(|value| value == "stable")
     {
         metadata.insert("status".to_owned(), "active".to_owned());
+        migrated = true;
+    }
+    if let Some(superseding_id) = metadata
+        .get("status")
+        .and_then(|value| value.strip_prefix("superseded-by="))
+        .map(str::to_owned)
+    {
+        metadata.insert("status".to_owned(), "superseded".to_owned());
+        metadata.insert("superseded-by".to_owned(), superseding_id);
         migrated = true;
     }
     let diagnostic = migrated.then(|| {
