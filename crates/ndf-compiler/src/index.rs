@@ -1,12 +1,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use ndf_core::identity::NodeId;
-use ndf_core::model::{Diagnostic, Graph, SourceSpan};
+use ndf_core::model::{
+    Diagnostic, DiagnosticSeverity, Edge, Graph, LifecycleStatus, Modality, Node, NodeKind,
+    SourceSpan,
+};
 use rusqlite::{Connection, OpenFlags, Row, Transaction, params, params_from_iter};
+use serde::ser::{SerializeSeq, SerializeStruct, Serializer};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::CompilerError;
@@ -433,7 +438,7 @@ pub fn build_index(
         path: parent.to_path_buf(),
         source,
     })?;
-    let canonical = canonical_graph(graph);
+    let canonical = CanonicalOrder::new(graph);
     let semantic_hash = semantic_hash(&canonical, provenance)?;
     let temporary = tempfile::Builder::new()
         .prefix(&format!(
@@ -452,7 +457,7 @@ pub fn build_index(
         connection.pragma_update(None, "foreign_keys", true)?;
         connection.execute_batch(SCHEMA)?;
         let transaction = connection.transaction()?;
-        insert_graph(&transaction, &canonical, provenance, &semantic_hash)?;
+        insert_graph(&transaction, graph, &canonical, provenance, &semantic_hash)?;
         let violations: i64 =
             transaction.query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| {
                 row.get(0)
@@ -473,9 +478,13 @@ pub fn build_index(
     Ok(IndexBuild {
         output: output.to_path_buf(),
         semantic_hash,
-        node_count: canonical.nodes.len(),
-        edge_count: canonical.edges.len(),
-        diagnostics: canonical.diagnostics,
+        node_count: graph.nodes.len(),
+        edge_count: graph.edges.len(),
+        diagnostics: canonical
+            .diagnostics
+            .iter()
+            .map(|diagnostic| (*diagnostic).clone())
+            .collect(),
     })
 }
 
@@ -527,53 +536,273 @@ fn absolute_path(path: &Path) -> Result<PathBuf, CompilerError> {
         })
 }
 
-fn canonical_graph(graph: &Graph) -> Graph {
-    let mut canonical = graph.clone();
-    canonical
-        .nodes
-        .sort_by(|left, right| left.id.cmp(&right.id));
-    canonical.edges.sort_by(|left, right| {
-        (&left.source, &left.edge_type, &left.target).cmp(&(
-            &right.source,
-            &right.edge_type,
-            &right.target,
-        ))
-    });
-    canonical.diagnostics.sort_by(|left, right| {
-        (
-            &left.primary.path,
-            left.primary.line,
-            &left.code,
-            left.subject.as_ref(),
-        )
-            .cmp(&(
+struct CanonicalOrder<'a> {
+    nodes: Vec<&'a Node>,
+    edges: Vec<&'a Edge>,
+    diagnostics: Vec<&'a Diagnostic>,
+}
+
+impl<'a> CanonicalOrder<'a> {
+    fn new(graph: &'a Graph) -> Self {
+        let mut nodes: Vec<_> = graph.nodes.iter().collect();
+        nodes.sort_by(|left, right| left.id.cmp(&right.id));
+        let mut edges: Vec<_> = graph.edges.iter().collect();
+        edges.sort_by(|left, right| {
+            (&left.source, &left.edge_type, &left.target).cmp(&(
+                &right.source,
+                &right.edge_type,
+                &right.target,
+            ))
+        });
+        let mut diagnostics: Vec<_> = graph.diagnostics.iter().collect();
+        diagnostics.sort_by(|left, right| {
+            (&left.primary.path, left.primary.line, &left.code).cmp(&(
                 &right.primary.path,
                 right.primary.line,
                 &right.code,
-                right.subject.as_ref(),
             ))
-    });
-    canonical
+        });
+        Self {
+            nodes,
+            edges,
+            diagnostics,
+        }
+    }
 }
 
-fn semantic_hash(graph: &Graph, provenance: &BuildProvenance) -> Result<String, CompilerError> {
+#[derive(Serialize)]
+struct CanonicalPayload<'a> {
+    format_version: &'a str,
+    graph: CanonicalGraph<'a>,
+    ir_version: &'a str,
+    project_commits: &'a [(String, String)],
+    tool_version: &'a str,
+}
+
+struct CanonicalGraph<'a> {
+    order: &'a CanonicalOrder<'a>,
+}
+
+impl Serialize for CanonicalGraph<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Graph", 4)?;
+        state.serialize_field(
+            "diagnostics",
+            &CanonicalDiagnostics(&self.order.diagnostics),
+        )?;
+        state.serialize_field("edges", &CanonicalEdges(&self.order.edges))?;
+        state.serialize_field("nodes", &CanonicalNodes(&self.order.nodes))?;
+        state.serialize_field("schema_version", "0.1")?;
+        state.end()
+    }
+}
+
+struct CanonicalNodes<'a>(&'a [&'a Node]);
+
+impl Serialize for CanonicalNodes<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut sequence = serializer.serialize_seq(Some(self.0.len()))?;
+        for node in self.0 {
+            sequence.serialize_element(&CanonicalNode::from(*node))?;
+        }
+        sequence.end()
+    }
+}
+
+#[derive(Serialize)]
+struct CanonicalNode<'a> {
+    attributes: &'a BTreeMap<String, String>,
+    body: &'a str,
+    domain: Option<&'a str>,
+    id: &'a NodeId,
+    kind: NodeKind,
+    modality: Option<Modality>,
+    owner: Option<&'a str>,
+    refinement: Option<&'a str>,
+    source: CanonicalSpan<'a>,
+    status: LifecycleStatus,
+    title: &'a str,
+}
+
+impl<'a> From<&'a Node> for CanonicalNode<'a> {
+    fn from(node: &'a Node) -> Self {
+        Self {
+            attributes: &node.attributes,
+            body: &node.body,
+            domain: node.domain.as_deref(),
+            id: &node.id,
+            kind: node.kind,
+            modality: node.modality,
+            owner: node.owner.as_deref(),
+            refinement: node.refinement.as_deref(),
+            source: CanonicalSpan::from(&node.source),
+            status: node.status,
+            title: &node.title,
+        }
+    }
+}
+
+struct CanonicalEdges<'a>(&'a [&'a Edge]);
+
+impl Serialize for CanonicalEdges<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut sequence = serializer.serialize_seq(Some(self.0.len()))?;
+        for edge in self.0 {
+            sequence.serialize_element(&CanonicalEdge::from(*edge))?;
+        }
+        sequence.end()
+    }
+}
+
+#[derive(Serialize)]
+struct CanonicalEdge<'a> {
+    attributes: &'a BTreeMap<String, String>,
+    source: &'a NodeId,
+    source_span: Option<CanonicalSpan<'a>>,
+    target: &'a NodeId,
+    #[serde(rename = "type")]
+    edge_type: &'a str,
+}
+
+impl<'a> From<&'a Edge> for CanonicalEdge<'a> {
+    fn from(edge: &'a Edge) -> Self {
+        Self {
+            attributes: &edge.attributes,
+            source: &edge.source,
+            source_span: edge.source_span.as_ref().map(CanonicalSpan::from),
+            target: &edge.target,
+            edge_type: &edge.edge_type,
+        }
+    }
+}
+
+struct CanonicalDiagnostics<'a>(&'a [&'a Diagnostic]);
+
+impl Serialize for CanonicalDiagnostics<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut sequence = serializer.serialize_seq(Some(self.0.len()))?;
+        for diagnostic in self.0 {
+            sequence.serialize_element(&CanonicalDiagnostic::from(*diagnostic))?;
+        }
+        sequence.end()
+    }
+}
+
+#[derive(Serialize)]
+struct CanonicalDiagnostic<'a> {
+    code: &'a str,
+    message: &'a str,
+    primary: CanonicalSpan<'a>,
+    related: CanonicalSpans<'a>,
+    repair: Option<&'a str>,
+    severity: DiagnosticSeverity,
+    subject: Option<&'a NodeId>,
+}
+
+impl<'a> From<&'a Diagnostic> for CanonicalDiagnostic<'a> {
+    fn from(diagnostic: &'a Diagnostic) -> Self {
+        Self {
+            code: &diagnostic.code,
+            message: &diagnostic.message,
+            primary: CanonicalSpan::from(&diagnostic.primary),
+            related: CanonicalSpans(&diagnostic.related),
+            repair: diagnostic.repair.as_deref(),
+            severity: diagnostic.severity,
+            subject: diagnostic.subject.as_ref(),
+        }
+    }
+}
+
+struct CanonicalSpans<'a>(&'a [SourceSpan]);
+
+impl Serialize for CanonicalSpans<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut sequence = serializer.serialize_seq(Some(self.0.len()))?;
+        for span in self.0 {
+            sequence.serialize_element(&CanonicalSpan::from(span))?;
+        }
+        sequence.end()
+    }
+}
+
+#[derive(Clone, Copy, Serialize)]
+struct CanonicalSpan<'a> {
+    column: u32,
+    end_column: Option<u32>,
+    end_line: Option<u32>,
+    line: u32,
+    path: &'a str,
+}
+
+impl<'a> CanonicalSpan<'a> {
+    fn new(span: &'a SourceSpan) -> Self {
+        Self {
+            column: span.column,
+            end_column: span.end_column,
+            end_line: span.end_line,
+            line: span.line,
+            path: &span.path,
+        }
+    }
+}
+
+impl<'a> From<&'a SourceSpan> for CanonicalSpan<'a> {
+    fn from(span: &'a SourceSpan) -> Self {
+        Self::new(span)
+    }
+}
+
+struct HashWriter(Sha256);
+
+impl Write for HashWriter {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        self.0.update(buffer);
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+fn semantic_hash(
+    graph: &CanonicalOrder<'_>,
+    provenance: &BuildProvenance,
+) -> Result<String, CompilerError> {
     let mut project_commits = provenance.project_commits.clone();
     project_commits.sort();
-    let payload = json!({
-        "format_version": provenance.format_version,
-        "graph": graph,
-        "ir_version": provenance.ir_version,
-        "project_commits": project_commits,
-        "tool_version": provenance.tool_version,
-    });
-    let encoded = serde_json::to_vec(&payload)?;
-    let digest = Sha256::digest(encoded);
+    let payload = CanonicalPayload {
+        format_version: &provenance.format_version,
+        graph: CanonicalGraph { order: graph },
+        ir_version: &provenance.ir_version,
+        project_commits: &project_commits,
+        tool_version: &provenance.tool_version,
+    };
+    let mut writer = HashWriter(Sha256::new());
+    serde_json::to_writer(&mut writer, &payload)?;
+    let digest = writer.0.finalize();
     Ok(digest.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
 fn insert_graph(
     transaction: &Transaction<'_>,
     graph: &Graph,
+    canonical: &CanonicalOrder<'_>,
     provenance: &BuildProvenance,
     semantic_hash: &str,
 ) -> Result<(), CompilerError> {
@@ -598,7 +827,7 @@ fn insert_graph(
         )?;
         let mut attribute_statement =
             transaction.prepare("INSERT INTO node_attrs(node_uri, key, value) VALUES (?, ?, ?)")?;
-        for node in &graph.nodes {
+        for node in &canonical.nodes {
             node_statement.execute(params![
                 node.id.to_string(),
                 node.id.project_id(),
@@ -624,7 +853,7 @@ fn insert_graph(
         let mut statement = transaction.prepare(
             "INSERT INTO edges(edge_id, source_uri, edge_type, target_uri, source_path, line, attributes_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
         )?;
-        for (index, edge) in graph.edges.iter().enumerate() {
+        for (index, edge) in canonical.edges.iter().enumerate() {
             statement.execute(params![
                 (index + 1) as i64,
                 edge.source.to_string(),
@@ -640,7 +869,7 @@ fn insert_graph(
         let mut statement = transaction.prepare(
             "INSERT INTO diagnostics(diagnostic_id, fingerprint, code, severity, message, subject_uri, source_path, line, repair) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )?;
-        for (index, diagnostic) in graph.diagnostics.iter().enumerate() {
+        for (index, diagnostic) in canonical.diagnostics.iter().enumerate() {
             statement.execute(params![
                 (index + 1) as i64,
                 diagnostic_fingerprint(diagnostic),
