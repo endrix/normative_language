@@ -133,6 +133,7 @@ class Diagnostic:
     primary: SourceSpan
     related: tuple[SourceSpan, ...] = ()
     repair: str | None = None
+    subject: NodeId | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -142,6 +143,7 @@ class Diagnostic:
             "primary": self.primary.to_dict(),
             "related": [span.to_dict() for span in self.related],
             "repair": self.repair,
+            "subject": str(self.subject) if self.subject else None,
         }
 
 

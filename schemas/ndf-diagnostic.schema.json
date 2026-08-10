@@ -3,14 +3,15 @@
   "$id": "https://pto-isa.org/ndf/schemas/ndf-diagnostic-0.1.json",
   "title": "NDF diagnostic",
   "type": "object",
-  "required": ["code", "severity", "message", "primary", "related", "repair"],
+  "required": ["code", "severity", "message", "primary", "related", "repair", "subject"],
   "properties": {
     "code": {"type": "string", "pattern": "^NDF-[A-Z]+-[0-9]{3}$"},
     "severity": {"enum": ["information", "warning", "error"]},
     "message": {"type": "string"},
     "primary": {"type": "object"},
     "related": {"type": "array", "items": {"type": "object"}},
-    "repair": {"type": ["string", "null"]}
+    "repair": {"type": ["string", "null"]},
+    "subject": {"type": ["string", "null"]}
   },
   "additionalProperties": false
 }
