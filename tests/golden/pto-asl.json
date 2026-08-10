@@ -1,0 +1,161 @@
+{
+  "accept.asl": {
+    "diagnostics": [],
+    "edges": [
+      {
+        "attributes": {},
+        "source": "ndf://pto-spec/PTO-TILE-CAPACITY",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 3,
+          "path": "accept.asl"
+        },
+        "target": "ndf://pto-spec/PTO-INST-TILE-TLOAD",
+        "type": "references"
+      }
+    ],
+    "nodes": [
+      {
+        "attributes": {
+          "mnemonic": "TLOAD",
+          "surface": "tile"
+        },
+        "body": "",
+        "domain": "tile",
+        "id": "ndf://pto-spec/PTO-INST-TILE-TLOAD",
+        "kind": "definition",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "accept.asl"
+        },
+        "status": "active",
+        "title": "tile TLOAD instruction"
+      },
+      {
+        "attributes": {
+          "pto_kind": "contract"
+        },
+        "body": "Tile capacity is defined per selected PE; see [[PTO-INST-TILE-TLOAD]].",
+        "domain": "tile",
+        "id": "ndf://pto-spec/PTO-TILE-CAPACITY",
+        "kind": "requirement",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": "L1",
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 3,
+          "path": "accept.asl"
+        },
+        "status": "active",
+        "title": "Tile Capacity"
+      },
+      {
+        "attributes": {
+          "pto_kind": "mechanism"
+        },
+        "body": "The implementation tracks capacity in tile state.",
+        "domain": "tile",
+        "id": "ndf://pto-spec/PTO-TILE-CAPACITY-MECHANISM",
+        "kind": "architecture",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": "L2",
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 8,
+          "path": "accept.asl"
+        },
+        "status": "open",
+        "title": "Tile Capacity Mechanism"
+      }
+    ],
+    "schema_version": "0.1"
+  },
+  "reject-duplicate.asl": {
+    "diagnostics": [
+      {
+        "code": "NDF-ASL-002",
+        "message": "duplicate NDF metadata field: status",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 2,
+          "path": "reject-duplicate.asl"
+        },
+        "related": [],
+        "repair": "Keep exactly one value for each metadata field.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-TILE-CAPACITY"
+      }
+    ],
+    "edges": [],
+    "nodes": [],
+    "schema_version": "0.1"
+  },
+  "reject-metadata.asl": {
+    "diagnostics": [
+      {
+        "code": "NDF-ASL-002",
+        "message": "kind contract requires level L1",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 2,
+          "path": "reject-metadata.asl"
+        },
+        "related": [],
+        "repair": "Use the level assigned to the PTO kind.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-TILE-CAPACITY"
+      },
+      {
+        "code": "NDF-ASL-002",
+        "message": "unknown NDF layer: unknown",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 2,
+          "path": "reject-metadata.asl"
+        },
+        "related": [],
+        "repair": "Use a registered PTO layer.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-TILE-CAPACITY"
+      },
+      {
+        "code": "NDF-ASL-002",
+        "message": "unknown NDF status: final",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 2,
+          "path": "reject-metadata.asl"
+        },
+        "related": [],
+        "repair": "Use open or accepted.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-TILE-CAPACITY"
+      }
+    ],
+    "edges": [],
+    "nodes": [],
+    "schema_version": "0.1"
+  }
+}

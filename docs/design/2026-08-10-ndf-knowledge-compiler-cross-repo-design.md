@@ -111,8 +111,11 @@ the compatibility boundary between authoring formats and query features.
 | `ndf-query` | Node lookup, graph traversal, coverage, status, and semantic diff |
 | `ndf-cli` | Human and agent command surface with JSON output |
 
-These may initially be Python modules in one package. They are boundaries, not
-a requirement to publish separate packages.
+The compiler is implemented in Rust. The initial Cargo workspace groups these
+boundaries into `ndf-core`, `ndf-compiler`, and `ndf-cli` rather than creating a
+crate for every row in the table. The detailed migration and release contract is
+defined in
+[`2026-08-10-ndf-rust-compiler-migration-design.md`](../superpowers/specs/2026-08-10-ndf-rust-compiler-migration-design.md).
 
 ## 6. Canonical Data Model
 
@@ -320,6 +323,9 @@ Owns:
 It must include small, redistributed fixtures representing both PTO ASL NDF and
 DavinciOO Markdown NDF. Full external repositories remain end-to-end consumers,
 not vendored test data.
+
+The supported compiler is a standalone Rust binary. The merged Python prototype
+is a migration oracle only and is removed before the first `v0.1.0` release.
 
 ### 10.2 `PTO-ISA/pto-spec`
 

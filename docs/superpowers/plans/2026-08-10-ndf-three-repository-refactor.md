@@ -6,7 +6,7 @@
 
 **Architecture:** Markdown, ASL, source, test, and evidence files remain Git-tracked sources of truth. Parser adapters normalize them into a versioned canonical IR, generic and project rules validate that IR, and a deterministic SQLite database provides disposable query indexes. The dependency direction is strictly `DavinciOO -> normative_language`, `DavinciOO -> pto-spec`, and `pto-spec -> normative_language`; no upstream repository imports DavinciOO.
 
-**Tech Stack:** Python 3.11+, `dataclasses`, `enum.StrEnum`, `argparse`, `sqlite3`, `json`, `pathlib`, PyYAML 6.x, `unittest`, Markdown, Git, Git submodules, GitHub Actions.
+**Tech Stack:** Rust 1.94.0, Cargo edition 2024, Clap, Serde, Rusqlite with bundled SQLite, Markdown, Git, Git submodules, GitHub Actions; repository-local Python tests may invoke the NDF binary but NDF itself has no Python runtime.
 
 ## Global Constraints
 
@@ -22,6 +22,15 @@
 - Existing DavinciOO debt enters an owned, expiring baseline; every new or worsened diagnostic fails CI immediately.
 - Keep English and Chinese NDF specifications synchronized in the same commit.
 - Execute the plan inline, in repository-isolated worktrees, with one repository and one task active at a time.
+
+## Rust Compiler Foundation
+
+Before Task 9, execute
+[`2026-08-10-ndf-rust-compiler-migration.md`](2026-08-10-ndf-rust-compiler-migration.md)
+in full. The first `v0.1.0` tag points to its merged Rust release commit.
+
+Downstream repositories build NDF with `cargo build --locked --release` and call
+its versioned JSON CLI. NDF has no Python runtime or import surface.
 
 ---
 
@@ -53,659 +62,9 @@ exists. Each downstream PR records the consumed commit in its lock and PR body.
 
 ---
 
-### Task 1: Scaffold the NDF package and freeze public version surfaces
+### Completed foundation: Rust NDF v0.1.0
 
-**Repository:** `PTO-ISA/normative_language`
-
-**Files:**
-- Create: `pyproject.toml`
-- Create: `requirements-lock.txt`
-- Create: `src/ndf/__init__.py`
-- Create: `src/ndf/__main__.py`
-- Create: `src/ndf/version.py`
-- Create: `src/ndf/cli.py`
-- Create: `tests/test_cli.py`
-- Create: `.github/workflows/ci.yml`
-- Create: `.gitignore`
-- Create: `README.md`
-
-**Interfaces:**
-- Produces: `ndf.cli.main(argv: Sequence[str] | None = None) -> int`
-- Produces: `python -m ndf ...` as the installation-independent CLI entrypoint.
-- Produces: `ndf --machine-version` JSON with `tool_version`, `format_version`, `ir_version`, `cli_stability`, and `plugin_api`.
-
-- [ ] **Step 1: Write the failing CLI contract test**
-
-```python
-import json
-import unittest
-from contextlib import redirect_stdout
-from io import StringIO
-
-from ndf.cli import main
-
-
-class CliVersionTest(unittest.TestCase):
-    def test_machine_version_has_independent_surfaces(self) -> None:
-        output = StringIO()
-        with redirect_stdout(output):
-            status = main(["--machine-version"])
-        self.assertEqual(status, 0)
-        self.assertEqual(
-            json.loads(output.getvalue()),
-            {
-                "cli_stability": "experimental",
-                "format_version": "0.2",
-                "ir_version": "0.1",
-                "plugin_api": "experimental",
-                "tool_version": "0.1.0",
-            },
-        )
-```
-
-- [ ] **Step 2: Run the test and confirm the package is absent**
-
-Run: `python3 -m unittest tests.test_cli -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'ndf'`.
-
-- [ ] **Step 3: Add the minimal package and CLI**
-
-Use setuptools with package root `src`, require Python `>=3.11`, and declare
-`PyYAML>=6.0,<7` as the only runtime dependency. Add:
-
-```toml
-[project.scripts]
-ndf = "ndf.cli:entrypoint"
-```
-
-Implement `version.py` constants and `main()` with `argparse`. `entrypoint()`
-raises `SystemExit(main())` so tests can call `main()` directly;
-`src/ndf/__main__.py` imports and invokes `entrypoint()`.
-Pin `PyYAML==6.0.2` in `requirements-lock.txt` for CI and downstream
-reproducibility.
-
-- [ ] **Step 4: Add CI and ignore generated state**
-
-The workflow uses Python 3.11 and 3.12 and runs:
-
-```bash
-python -m pip install -r requirements-lock.txt
-python -m pip install -e . --no-deps
-python -m unittest discover -s tests -p 'test_*.py'
-git diff --check
-```
-
-Ignore `.venv/`, `build/`, `dist/`, `*.egg-info/`, `*.sqlite`, and
-`.ndf-cache/`.
-
-- [ ] **Step 5: Verify and commit**
-
-Run: `python3 -m pip install -r requirements-lock.txt && python3 -m pip install -e . --no-deps && python3 -m unittest discover -s tests -p 'test_*.py' && git diff --check`
-Expected: PASS.
-
-```bash
-git add pyproject.toml requirements-lock.txt src tests .github .gitignore README.md
-git commit -m "feat: scaffold the NDF knowledge compiler"
-```
-
----
-
-### Task 2: Define canonical identities, nodes, edges, and diagnostics
-
-**Repository:** `PTO-ISA/normative_language`
-
-**Files:**
-- Create: `src/ndf/model.py`
-- Create: `src/ndf/identity.py`
-- Create: `schemas/ndf-ir.schema.json`
-- Create: `schemas/ndf-diagnostic.schema.json`
-- Create: `tests/test_model.py`
-- Create: `tests/test_identity.py`
-
-**Interfaces:**
-- Produces: `canonical_uri(project_id: str, local_id: str) -> str`
-- Produces: `parse_uri(value: str, current_project: str | None = None) -> NodeId`
-- Produces immutable `SourceSpan`, `Node`, `Edge`, `Diagnostic`, `Graph`, and `ParseResult` dataclasses.
-- `NodeId` is an immutable `(project_id, local_id)` value whose string form is
-  the canonical URI; `ParseResult` contains `nodes`, `edges`, and `diagnostics`.
-
-- [ ] **Step 1: Write identity tests**
-
-```python
-class IdentityTest(unittest.TestCase):
-    def test_local_id_resolves_inside_current_project(self) -> None:
-        self.assertEqual(
-            str(parse_uri("VEC-ISSUE-001", current_project="davincioo")),
-            "ndf://davincioo/VEC-ISSUE-001",
-        )
-
-    def test_cross_project_reference_requires_uri(self) -> None:
-        with self.assertRaisesRegex(ValueError, "current project is required"):
-            parse_uri("VEC-ISSUE-001")
-```
-
-- [ ] **Step 2: Write model invariant tests**
-
-Test that an `Edge` rejects an empty type, a `SourceSpan` rejects line zero,
-and `Graph.add_node()` emits `NDF-ID-001` for a duplicate canonical URI.
-
-- [ ] **Step 3: Run tests and confirm missing symbols**
-
-Run: `python3 -m unittest tests.test_identity tests.test_model -v`
-Expected: FAIL on missing `ndf.identity` and `ndf.model`.
-
-- [ ] **Step 4: Implement canonical types**
-
-Use `StrEnum` for `NodeKind`, `Modality`, `LifecycleStatus`, and
-`DiagnosticSeverity`. Store project-owned `domain` and `refinement` as strings.
-Use this diagnostic shape:
-
-```python
-@dataclass(frozen=True)
-class Diagnostic:
-    code: str
-    severity: DiagnosticSeverity
-    message: str
-    primary: SourceSpan
-    related: tuple[SourceSpan, ...] = ()
-    repair: str | None = None
-```
-
-`Graph` provides insertion-independent `sorted_nodes()` and `sorted_edges()`.
-Add JSON Schemas for the serialized graph and diagnostic envelopes. The model
-tests load both schema documents as JSON and assert their required properties
-match the dataclass serializers without adding a JSON-Schema runtime dependency.
-
-- [ ] **Step 5: Verify and commit**
-
-Run: `python3 -m unittest tests.test_identity tests.test_model -v`
-Expected: PASS.
-
-```bash
-git add src/ndf/model.py src/ndf/identity.py schemas tests
-git commit -m "feat: define the canonical NDF graph model"
-```
-
----
-
-### Task 3: Parse manifests, locks, document front matter, and Markdown clauses
-
-**Repository:** `PTO-ISA/normative_language`
-
-**Files:**
-- Create: `src/ndf/manifest.py`
-- Create: `src/ndf/parsers/__init__.py`
-- Create: `src/ndf/parsers/markdown.py`
-- Create: `schemas/ndf-project.schema.json`
-- Create: `schemas/ndf-lock.schema.json`
-- Create: `schemas/ndf-front-matter.schema.json`
-- Create: `tests/fixtures/markdown/project/ndf.yaml`
-- Create: `tests/fixtures/markdown/project/ndf.lock`
-- Create: `tests/fixtures/markdown/project/docs/pipeline.md`
-- Create: `tests/test_manifest.py`
-- Create: `tests/test_markdown_parser.py`
-
-**Interfaces:**
-- Produces: `load_manifest(path: Path) -> ProjectManifest`
-- Produces: `load_lock(path: Path) -> ProjectLock`
-- Produces: `parse_markdown(path: Path, project: ProjectManifest) -> ParseResult`
-- `ProjectManifest` contains format version, project ID, roots, prefixes,
-  domains, and policies; `ProjectLock` contains exact dependency revisions.
-
-- [ ] **Step 1: Add a complete fixture**
-
-The fixture contains file front matter, informative prose, a fenced code block
-with a fake heading, and two real clauses:
-
-````markdown
----
-doc_id: DOC-DAVINCIOO-PIPELINE
-status: active
-authority: normative
-owner: core
----
-
-# Pipeline
-
-```text
-## Not a clause {#FAKE-001}
-```
-
-## Issue contract {#PIPE-ISSUE-001}
-<!-- ndf: kind=requirement modality=must refinement=L1 domain=core status=active -->
-
-The core MUST issue no more than two instructions per cycle.
-
-## Issue mechanism {#PIPE-ISSUE-010}
-<!-- ndf: kind=requirement modality=must refinement=L2 domain=core status=active refines=PIPE-ISSUE-001 -->
-
-Two issue slots MUST arbitrate oldest-ready first.
-````
-
-- [ ] **Step 2: Write parser tests**
-
-Assert exactly three nodes, one `refines` edge, correct source spans, and no
-`FAKE-001`. Assert stable diagnostics for invalid delimiters, duplicate keys,
-and unsupported fields.
-
-- [ ] **Step 3: Run tests and confirm failure**
-
-Run: `python3 -m unittest tests.test_manifest tests.test_markdown_parser -v`
-Expected: FAIL on missing parser modules.
-
-- [ ] **Step 4: Implement strict parsing**
-
-Use `yaml.safe_load`. Require project `format_version`, `project`, `roots`, and
-`id_prefixes`. Accept only 40-hex dependency revisions in `ndf.lock`. Track
-fenced blocks so headings inside them are ignored.
-
-Map legacy DavinciOO fields and emit `NDF-MIG-001` information:
-
-```text
-kind=req       -> kind=requirement
-level=must     -> modality=must
-layer=L1       -> refinement=L1
-status=stable  -> status=active
-```
-
-- [ ] **Step 5: Verify and commit**
-
-Run: `python3 -m unittest tests.test_manifest tests.test_markdown_parser -v`
-Expected: PASS.
-
-```bash
-git add src/ndf/parsers src/ndf/manifest.py schemas tests
-git commit -m "feat: parse NDF projects and Markdown clauses"
-```
-
----
-
-### Task 4: Implement generic validation and diagnostic baselines
-
-**Repository:** `PTO-ISA/normative_language`
-
-**Files:**
-- Create: `src/ndf/rules.py`
-- Create: `src/ndf/plugins.py`
-- Create: `src/ndf/baseline.py`
-- Create: `schemas/ndf-diagnostic-baseline.schema.json`
-- Create: `tests/test_rules.py`
-- Create: `tests/test_baseline.py`
-
-**Interfaces:**
-- Produces: `validate_graph(graph: Graph, policy: ValidationPolicy) -> tuple[Diagnostic, ...]`
-- Produces: `compare_baseline(current: Iterable[Diagnostic], baseline: DiagnosticBaseline) -> BaselineResult`
-- Produces: `load_project_rules(manifest: ProjectManifest) -> tuple[Rule, ...]`
-- `ValidationPolicy` is the normalized generic/project rule configuration;
-  `DiagnosticBaseline` is the parsed owned-debt file; `BaselineResult` exposes
-  `existing`, `new`, `worsened`, and `expired` diagnostics.
-
-- [ ] **Step 1: Write failing rule tests**
-
-Cover duplicate IDs, dangling mandatory edges, a `must` requirement without
-`MUST`, `MUST` in information text, invalid `active -> draft`, and an explicit
-node without an owner. Assert codes:
-
-```text
-NDF-ID-001 NDF-EDGE-001 NDF-MOD-001 NDF-MOD-002 NDF-LIFE-001 NDF-OWN-001
-```
-
-- [ ] **Step 2: Write baseline no-regression tests**
-
-Accept an identical diagnostic, reject a new code, reject a severity increase,
-and emit `NDF-BASE-003` when an entry lacks owner or expiry milestone.
-
-- [ ] **Step 3: Run tests and confirm failure**
-
-Run: `python3 -m unittest tests.test_rules tests.test_baseline -v`
-Expected: FAIL on missing modules.
-
-- [ ] **Step 4: Implement rules and fingerprinting**
-
-Fingerprint from `(code, canonical URI, normalized path, normalized message
-parameters)`, not line number. Baseline comparison never suppresses a
-diagnostic; it classifies it as existing or new.
-
-For format 0.2, project extension points are declarative, namespaced rule
-configuration from `ndf.yaml`; do not load arbitrary Python entry points. Reject
-unknown rule namespaces with `NDF-PLUGIN-001`, so a future plugin ABI can be
-added without silently reinterpreting current manifests.
-
-- [ ] **Step 5: Verify and commit**
-
-Run: `python3 -m unittest tests.test_rules tests.test_baseline -v`
-Expected: PASS.
-
-```bash
-git add src/ndf/rules.py src/ndf/plugins.py src/ndf/baseline.py schemas tests
-git commit -m "feat: enforce NDF graph invariants"
-```
-
----
-
-### Task 5: Build a deterministic SQLite index
-
-**Repository:** `PTO-ISA/normative_language`
-
-**Files:**
-- Create: `src/ndf/index.py`
-- Create: `src/ndf/sql/schema-v1.sql`
-- Create: `tests/test_index.py`
-- Create: `tests/test_index_scale.py`
-
-**Interfaces:**
-- Produces: `build_index(graph: Graph, output: Path, provenance: BuildProvenance) -> IndexBuild`
-- Produces: `open_index(path: Path) -> NdfIndex`
-- `NdfIndex` provides `get_node(uri)`, `out_edges(uri, edge_type=None)`, and
-  `in_edges(uri, edge_type=None)`.
-- `BuildProvenance` contains project commits and NDF versions; `IndexBuild`
-  contains output path, semantic hash, node/edge counts, and diagnostics.
-
-- [ ] **Step 1: Write the determinism test**
-
-Build indexes from the same graph with reversed insertion order. Query logical
-tables by primary key and assert identical rows and identical
-`IndexBuild.semantic_hash` values.
-
-- [ ] **Step 2: Write immutability and provenance tests**
-
-Assert atomic replacement, refusal to write inside a normative root, enabled
-foreign keys, and stored project commits, format version, IR version, and tool
-version.
-
-- [ ] **Step 3: Run tests and confirm failure**
-
-Run: `python3 -m unittest tests.test_index -v`
-Expected: FAIL on missing `ndf.index`.
-
-- [ ] **Step 4: Implement schema v1 and builder**
-
-Create `projects`, `sources`, `nodes`, `node_attrs`, `aliases`, `edges`,
-`diagnostics`, `baselines`, and `builds`. Insert sorted records in one
-transaction, run `PRAGMA foreign_key_check`, and atomically replace output.
-
-- [ ] **Step 5: Add a provisional scale test**
-
-Generate 100,000 nodes and 1,000,000 edges. Run only when
-`NDF_RUN_SCALE_TESTS=1`; record build time and size without setting a time gate
-until real measurements establish one.
-
-- [ ] **Step 6: Verify and commit**
-
-Run: `python3 -m unittest tests.test_index -v`
-Expected: PASS.
-
-```bash
-git add src/ndf/index.py src/ndf/sql tests
-git commit -m "feat: materialize deterministic NDF indexes"
-```
-
----
-
-### Task 6: Add query, trace, coverage, diff, ID, and safe-fix capabilities
-
-**Repository:** `PTO-ISA/normative_language`
-
-**Files:**
-- Create: `src/ndf/query.py`
-- Create: `src/ndf/report.py`
-- Create: `src/ndf/diff.py`
-- Create: `src/ndf/export.py`
-- Create: `src/ndf/id_allocator.py`
-- Create: `src/ndf/fix.py`
-- Modify: `src/ndf/cli.py`
-- Create: `tests/test_query.py`
-- Create: `tests/test_report.py`
-- Create: `tests/test_diff.py`
-- Create: `tests/test_export.py`
-- Create: `tests/test_id_allocator.py`
-- Create: `tests/test_fix.py`
-
-**Interfaces:**
-- Produces: `query_nodes(index, expression: str) -> tuple[NodeRecord, ...]`
-- Produces: `trace(index, uri: str, edge_types: frozenset[str]) -> TraceTree`
-- Produces: `coverage(index, policy: CoveragePolicy) -> CoverageReport`
-- Produces: `semantic_diff(before: NdfIndex, after: NdfIndex) -> SemanticDiff`
-- Produces: `export_graph(index: NdfIndex, output: Path, format: ExportFormat) -> ExportResult`
-- Produces: `allocate_id(prefix: str, occupied: Iterable[str]) -> str`
-- Produces: `safe_fix(paths: Sequence[Path], mode: FixMode) -> FixResult`
-- `NodeRecord` is the indexed node projection; `TraceTree`, `CoverageReport`,
-  `SemanticDiff`, `ExportResult`, and `FixResult` are immutable
-  JSON-serializable dataclasses. `CoveragePolicy`, `ExportFormat`, and
-  `FixMode` are explicit immutable configurations.
-
-- [ ] **Step 1: Write machine-output CLI tests**
-
-Test these experimental spellings:
-
-```bash
-ndf build --root FIXTURE --output graph.sqlite --format json
-ndf check --root FIXTURE --format json
-ndf show ndf://fixture/PIPE-ISSUE-001 --index graph.sqlite --format json
-ndf trace PIPE-ISSUE-001 --edge refines --format json
-ndf report coverage --format json
-ndf diff before.sqlite after.sqlite --format json
-ndf export --index graph.sqlite --output graph.json --format ndf-json
-ndf id allocate PIPE-ISSUE --format json
-ndf fix --generated-only --check
-```
-
-Each JSON object contains `schema_version`, `command`, `ok`, `data`, and
-`diagnostics`.
-
-- [ ] **Step 2: Write query, coverage, and trace tests**
-
-Coverage reports active `must` L1 requirements without incoming `verifies`,
-open questions/options, and `tbd` clauses. Trace terminates on cycles and
-reports the cycle edge.
-
-- [ ] **Step 3: Write semantic-diff tests**
-
-Assert added, removed, modified, moved, superseded, and edge-only changes. A
-move with the same explicit URI and body hash is `moved`, not remove/add.
-
-- [ ] **Step 4: Implement capabilities and CLI routing**
-
-Keep human output concise. `safe_fix` may reorder metadata and regenerate
-marked navigation; return `NDF-FIX-001` if asked to alter prose, authority,
-status, or semantic edges.
-
-The `ndf-json` export is deterministic, validates against
-`schemas/ndf-ir.schema.json`, includes build provenance, and omits absolute
-machine-local paths. This export is the semantic before/after artifact used by
-downstream move PRs.
-
-- [ ] **Step 5: Verify and commit**
-
-Run: `python3 -m unittest discover -s tests -p 'test_*.py'`
-Expected: PASS.
-
-```bash
-git add src/ndf tests
-git commit -m "feat: expose NDF graph workflows"
-```
-
----
-
-### Task 7: Implement the PTO ASL adapter and freeze parity fixtures
-
-**Repository:** `PTO-ISA/normative_language`
-
-**Files:**
-- Create: `src/ndf/adapters/__init__.py`
-- Create: `src/ndf/adapters/pto_asl.py`
-- Create: `tests/fixtures/pto-asl/accept.asl`
-- Create: `tests/fixtures/pto-asl/reject-duplicate.asl`
-- Create: `tests/fixtures/pto-asl/reject-metadata.asl`
-- Create: `tests/test_pto_asl_adapter.py`
-- Create: `docs/adapters/pto-asl.md`
-
-**Interfaces:**
-- Produces: `parse_pto_asl(path: Path, project: ProjectManifest) -> ParseResult`
-- Maps PTO `kind=intent|contract|mechanism|executable` to refinement
-  `L0|L1|L2|L3`, PTO `layer` to `domain`, and PTO status to canonical lifecycle.
-
-- [ ] **Step 1: Create redistributable parity fixtures**
-
-Use the behavior in PTO-SPEC `tests/scripts/test_ndf.py`, preserving diagnostic
-meaning without copying unrelated PTO content.
-
-- [ ] **Step 2: Write adapter tests**
-
-Assert region matching, comment-only bodies, metadata validation, instruction
-identity generation, `[[PTO-*]]` references, and source lines.
-
-- [ ] **Step 3: Run tests and confirm failure**
-
-Run: `python3 -m unittest tests.test_pto_asl_adapter -v`
-Expected: FAIL on missing adapter.
-
-- [ ] **Step 4: Implement without importing PTO-SPEC code**
-
-Keep PTO syntax policy in this adapter. Return canonical nodes and diagnostics;
-do not expose PTO-specific dataclasses through the generic API.
-
-- [ ] **Step 5: Verify and commit**
-
-Run: `python3 -m unittest discover -s tests -p 'test_*.py'`
-Expected: PASS.
-
-```bash
-git add src/ndf/adapters tests/fixtures/pto-asl tests/test_pto_asl_adapter.py docs/adapters
-git commit -m "feat: add the PTO ASL NDF adapter"
-```
-
----
-
-### Task 7A: Index repository artifacts, evidence, and pinned dependencies
-
-**Repository:** `PTO-ISA/normative_language`
-
-**Files:**
-- Create: `src/ndf/adapters/repository.py`
-- Create: `src/ndf/adapters/evidence.py`
-- Create: `src/ndf/dependencies.py`
-- Create: `schemas/ndf-evidence.schema.json`
-- Create: `tests/fixtures/repository/src/core.py`
-- Create: `tests/fixtures/repository/tests/test_core.py`
-- Create: `tests/fixtures/repository/evidence/core.json`
-- Create: `tests/test_repository_adapter.py`
-- Create: `tests/test_evidence_adapter.py`
-- Create: `tests/test_dependencies.py`
-
-**Interfaces:**
-- Produces: `index_repository_paths(root: Path, globs: Sequence[str], project: ProjectManifest) -> ParseResult`
-- Produces: `parse_evidence_manifest(path: Path, project: ProjectManifest) -> ParseResult`
-- Produces: `resolve_dependencies(manifest: ProjectManifest, lock: ProjectLock, workspace: Path) -> tuple[ResolvedProject, ...]`
-- `ResolvedProject` records canonical project ID, local path, exact Git revision,
-  dirty-state policy, and dependency provenance.
-
-- [ ] **Step 1: Write source, test, and evidence fixture tests**
-
-Assert deterministic derived IDs for source and test artifacts, explicit IDs
-for evidence records, and `implements`, `verifies`, and `evidenced-by` edges to
-normative clauses. Reordering the input globs must not change identities or
-serialized output.
-
-- [ ] **Step 2: Write dependency resolution tests**
-
-Cover an exact detached commit, a submodule at the locked revision, a missing
-dependency, a symbolic branch name, a revision mismatch, and a dirty dependency
-when `allow_dirty` is false. Assert stable diagnostics:
-
-```text
-NDF-DEP-001 NDF-DEP-002 NDF-DEP-003 NDF-DEP-004
-```
-
-- [ ] **Step 3: Run tests and confirm failure**
-
-Run: `python3 -m unittest tests.test_repository_adapter tests.test_evidence_adapter tests.test_dependencies -v`
-Expected: FAIL on missing adapter and dependency modules.
-
-- [ ] **Step 4: Implement the bounded repository adapters**
-
-Repository paths are descriptive nodes, not normative clauses. Derive their
-IDs from `(project ID, normalized repository-relative path, artifact kind)`;
-store Git revision and content hash as attributes. Evidence manifests validate
-against `schemas/ndf-evidence.schema.json` and must name the command, result,
-tool version, source revision, timestamp, and linked clause IDs.
-
-Dependency resolution reads only manifest paths and exact revisions from
-`ndf.lock`. It may inspect a checked-out Git worktree or submodule, but it must
-not clone, fetch, or mutate repositories. Add `ndf report dependencies
---format json` so CI can record the resolved compatibility tuple.
-
-- [ ] **Step 5: Verify and commit**
-
-Run: `python3 -m unittest discover -s tests -p 'test_*.py'`
-Expected: PASS.
-
-```bash
-git add src/ndf/adapters src/ndf/dependencies.py schemas tests
-git commit -m "feat: index repository evidence and pinned dependencies"
-```
-
----
-
-### Task 8: Revise the NDF specification and publish experimental release 0.1.0
-
-**Repository:** `PTO-ISA/normative_language`
-
-**Files:**
-- Modify: `normative_language.md`
-- Modify: `normative_language_cn.md`
-- Create: `docs/format/migration-v0.1-to-v0.2.md`
-- Create: `CHANGELOG.md`
-- Create: `tests/test_spec_sync.py`
-- Modify: `README.md`
-
-**Interfaces:**
-- Produces format `0.2`, IR `0.1`, and machine-output schema `0.1`.
-- Produces Git tag `v0.1.0` after merge and CI success.
-
-- [ ] **Step 1: Write specification contract tests**
-
-Require both language files to carry matching versions and sections for derived
-indexes, canonical dimensions, namespaced identity, front matter, lock files,
-agent enforcement, and maturity levels.
-
-- [ ] **Step 2: Run the sync test and confirm failure**
-
-Run: `python3 -m unittest tests.test_spec_sync -v`
-Expected: FAIL because the new sections are absent.
-
-- [ ] **Step 3: Update English and Chinese specifications together**
-
-Replace “no database” with derived-index rules. Replace overloaded fields with
-`kind/modality/refinement/domain/status`. Document legacy adapters, `ndf://`
-URIs, file front matter, `ndf.lock`, maturity, JSON output, and agent gates.
-
-- [ ] **Step 4: Write migration guide and changelog**
-
-Include before/after DavinciOO Markdown and PTO ASL mappings. State that CLI
-spelling and plugin ABI remain experimental.
-
-- [ ] **Step 5: Run the release-candidate gate**
-
-```bash
-python3 -m unittest discover -s tests -p 'test_*.py'
-ndf check --root tests/fixtures/markdown/project --format json
-git diff --check
-```
-
-Expected: PASS and no untracked SQLite database.
-
-- [ ] **Step 6: Commit, merge through PR, then tag**
-
-```bash
-git add normative_language*.md README.md CHANGELOG.md docs/format tests/test_spec_sync.py
-git commit -m "docs: define NDF knowledge compiler format 0.2"
-git tag -a v0.1.0 -m "NDF knowledge compiler experimental 0.1.0"
-```
-
-Push the tag only after it points to the merged release commit.
-
----
+The standalone Rust compiler, frozen golden contracts, deterministic SQLite index, complete JSON CLI, and release-scale evidence are implemented in `PTO-ISA/normative_language`. The release PR must merge before the exact merged commit is tagged `v0.1.0`; downstream work begins only after that tag exists.
 
 ### Task 9: Pin NDF in PTO-SPEC, prove parity, and publish compatibility patch 0.1.1
 
@@ -739,9 +98,11 @@ ASL roots, `PTO-*` prefixes, and the PTO ASL adapter.
 
 - [ ] **Step 2: Write the failing full-tree parity test**
 
-Load `scripts/ndf.py` as old oracle and `tools/ndf/src/ndf` as candidate.
-Compare canonical clause IDs, bodies, paths, lines, references, and normalized
-validation errors. Keep field translation explicit in the test.
+Load `scripts/ndf.py` as the old oracle. Build the pinned Rust candidate with
+`cargo build --manifest-path tools/ndf/Cargo.toml --locked --release` and invoke
+`tools/ndf/target/release/ndf` through `subprocess`. Compare canonical clause
+IDs, bodies, paths, lines, references, and normalized validation errors. Keep
+field translation explicit in the test; do not import candidate internals.
 
 - [ ] **Step 3: Run the parity test**
 
@@ -805,13 +166,11 @@ Expected: FAIL only on the new wrapper contract.
 
 - [ ] **Step 3: Replace the wrapper**
 
-Import the pinned source locally:
+Make `scripts/check-ndf` execute the pinned binary:
 
-```python
-NDF_SRC = ROOT / "tools" / "ndf" / "src"
-sys.path.insert(0, str(NDF_SRC))
-from ndf.cli import main as ndf_main
-raise SystemExit(ndf_main(["check", "--root", str(ROOT), "--format", "human"]))
+```bash
+cargo build --manifest-path "$ROOT/tools/ndf/Cargo.toml" --locked --release -p ndf-cli
+exec "$ROOT/tools/ndf/target/release/ndf" check --root "$ROOT" --format json
 ```
 
 Keep `ndf_legacy.py` for one experimental compatibility window. Parity tests
@@ -819,12 +178,11 @@ run it; normal CI does not.
 
 - [ ] **Step 4: Update documentation and checkout gates**
 
-Document pin updates. Ensure CI initializes `tools/ndf` recursively and
-installs the pinned runtime before `make pr-check`:
+Document pin updates. Ensure CI initializes `tools/ndf` recursively and builds
+the pinned runtime before `make pr-check`:
 
 ```bash
-python3 -m pip install -r tools/ndf/requirements-lock.txt
-python3 -m pip install -e tools/ndf --no-deps
+cargo build --manifest-path tools/ndf/Cargo.toml --locked --release -p ndf-cli
 ```
 
 `make pr-check` must still run `./scripts/check-ndf`.
@@ -897,14 +255,15 @@ Never baseline duplicate explicit IDs, invalid locks, or non-determinism.
 
 - [ ] **Step 5: Implement the build wrapper**
 
-Import only `toolchains/ndf/src`, support `--check`, `--changed`, and `--output`,
-write under `.ndf-cache/` by default, and fail on new/worsened diagnostics.
+Invoke `toolchains/ndf/target/release/ndf` as a subprocess, parse only its
+versioned JSON envelope, support `--check`, `--changed`, and `--output`, write
+under `.ndf-cache/` by default, and fail on new/worsened diagnostics. Do not
+import or duplicate NDF compiler logic.
 
 - [ ] **Step 6: Verify and commit**
 
 ```bash
-python3 -m pip install -r toolchains/ndf/requirements-lock.txt
-python3 -m pip install -e toolchains/ndf --no-deps
+cargo build --manifest-path toolchains/ndf/Cargo.toml --locked --release -p ndf-cli
 python3 toolchains/scripts/build_ndf_index.py --check
 pytest srcs/tests/unit/test_ndf_project_contract.py -q
 git diff --check
@@ -950,16 +309,16 @@ Expected: FAIL with missing contract phrases.
 - [ ] **Step 3: Add guidance and the local hook**
 
 Add a local pre-commit hook for changed docs/NDF/config. It runs changed-scope
-validation and never writes files. Configure the hook as an isolated Python
-hook with `PyYAML==6.0.2` as an additional dependency. Keep full validation in
-CI.
+validation and never writes files. Configure it as a repository-local system
+hook that calls the project wrapper; the wrapper invokes the pinned Rust binary.
+Keep full validation in CI.
 
 - [ ] **Step 4: Add the CI job**
 
-Checkout recursive submodules, use Python 3.12, install
-`toolchains/ndf/requirements-lock.txt` plus the local NDF package with
-`--no-deps`, then run project-contract tests and full index check. Upload JSON
-diagnostics on failure, not SQLite.
+Checkout recursive submodules, install Rust 1.94.0 and Python 3.12, build NDF
+with `cargo build --manifest-path toolchains/ndf/Cargo.toml --locked --release`,
+then run project-contract tests and the full index check. Upload JSON diagnostics
+on failure, not SQLite.
 
 - [ ] **Step 5: Verify and commit**
 
@@ -1026,7 +385,7 @@ rg -n 'designs/DavinciOO/(ndf|superscalar_v5|old|pic)' . --glob '!isa/**'
 
 ```bash
 python3 toolchains/scripts/build_ndf_index.py --output /tmp/davincioo-after.sqlite
-PYTHONPATH=toolchains/ndf/src python3 -m ndf diff /tmp/davincioo-before.sqlite /tmp/davincioo-after.sqlite --format json
+toolchains/ndf/target/release/ndf diff /tmp/davincioo-before.sqlite /tmp/davincioo-after.sqlite --format json
 ```
 
 Expected: move and reference-location changes only. Fix semantic changes before
@@ -1206,22 +565,21 @@ Run from clean worktrees after upstream pins merge:
 
 ```bash
 # PTO-ISA/normative_language
-python3 -m pip install -r requirements-lock.txt
-python3 -m pip install -e . --no-deps
-python3 -m unittest discover -s tests -p 'test_*.py'
-ndf check --root tests/fixtures/markdown/project --format json
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features --locked
+cargo build --workspace --release --locked
+scripts/ndf check --root tests/fixtures/markdown/project --format json
 
 # PTO-ISA/pto-spec
 git submodule update --init --recursive
-python3 -m pip install -r tools/ndf/requirements-lock.txt
-python3 -m pip install -e tools/ndf --no-deps
+cargo build --manifest-path tools/ndf/Cargo.toml --locked --release -p ndf-cli
 make pr-check
 
 # hengliao1972/DavinciOO
 git submodule update --init --recursive
 python3 -m pip install -e ".[dev]"
-python3 -m pip install -r toolchains/ndf/requirements-lock.txt
-python3 -m pip install -e toolchains/ndf --no-deps
+cargo build --manifest-path toolchains/ndf/Cargo.toml --locked --release -p ndf-cli
 python3 toolchains/scripts/build_ndf_index.py --check
 python3 toolchains/scripts/generate_docs_navigation.py --check
 pytest srcs/tests/unit -q

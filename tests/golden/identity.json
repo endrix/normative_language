@@ -1,0 +1,13 @@
+{
+  "canonical": {
+    "local_id": "PTO-INST-TLOAD",
+    "project_id": "pto-spec",
+    "uri": "ndf://pto-spec/PTO-INST-TLOAD"
+  },
+  "errors": {
+    "invalid_project": "invalid project ID: 'DavinciOO'",
+    "invalid_uri": "invalid NDF URI: 'ndf://pto-spec/path/with/slash'",
+    "missing_project": "current project is required for a local NDF ID"
+  },
+  "local": "ndf://davincioo/VEC-ISSUE-001"
+}

@@ -1,0 +1,64 @@
+{
+  "coverage": {
+    "open_items": [],
+    "tbd": [],
+    "unverified": [
+      "ndf://fixture/PIPE-ISSUE-001"
+    ]
+  },
+  "query": [
+    {
+      "attributes": {},
+      "body": "The core MUST issue no more than two instructions per cycle.",
+      "domain": "core",
+      "id": "ndf://fixture/PIPE-ISSUE-001",
+      "kind": "requirement",
+      "modality": "must",
+      "owner": "core",
+      "refinement": "L1",
+      "source": {
+        "column": 1,
+        "end_column": null,
+        "end_line": null,
+        "line": 14,
+        "path": "docs/pipeline.md"
+      },
+      "status": "active",
+      "title": "Issue contract"
+    },
+    {
+      "attributes": {},
+      "body": "Two issue slots MUST arbitrate oldest-ready first.",
+      "domain": "core",
+      "id": "ndf://fixture/PIPE-ISSUE-010",
+      "kind": "requirement",
+      "modality": "must",
+      "owner": "core",
+      "refinement": "L2",
+      "source": {
+        "column": 1,
+        "end_column": null,
+        "end_line": null,
+        "line": 19,
+        "path": "docs/pipeline.md"
+      },
+      "status": "active",
+      "title": "Issue mechanism"
+    }
+  ],
+  "trace": {
+    "cycles": [],
+    "edges": [
+      {
+        "source": "ndf://fixture/PIPE-ISSUE-010",
+        "target": "ndf://fixture/PIPE-ISSUE-001",
+        "type": "refines"
+      }
+    ],
+    "nodes": [
+      "ndf://fixture/PIPE-ISSUE-010",
+      "ndf://fixture/PIPE-ISSUE-001"
+    ],
+    "root": "ndf://fixture/PIPE-ISSUE-010"
+  }
+}

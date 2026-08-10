@@ -1,5 +1,0 @@
-TOOL_VERSION = "0.1.0"
-FORMAT_VERSION = "0.2"
-IR_VERSION = "0.1"
-CLI_STABILITY = "experimental"
-PLUGIN_API = "experimental"

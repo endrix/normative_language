@@ -7,3 +7,4 @@ dist/
 *.sqlite
 __pycache__/
 *.py[cod]
+/target/

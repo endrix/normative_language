@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$repo_root"
+
+cargo test -p ndf-compiler --test scale --release --locked --no-run >/dev/null
+test_binary=$(find target/release/deps -type f -name 'scale-*' ! -name '*.d' -perm -111 -print0 | xargs -0 ls -t | head -n 1)
+metrics=$(mktemp)
+output=$(mktemp)
+trap 'rm -f "$metrics" "$output"' EXIT
+
+if [[ $(uname -s) == Darwin ]]; then
+  /usr/bin/time -l -o "$metrics" env NDF_RUN_SCALE_TESTS=1 "$test_binary" --exact release_scale_contract --nocapture >"$output"
+  rss_bytes=$(awk '/maximum resident set size/ {print $1}' "$metrics")
+else
+  /usr/bin/time -v -o "$metrics" env NDF_RUN_SCALE_TESTS=1 "$test_binary" --exact release_scale_contract --nocapture >"$output"
+  rss_kib=$(awk -F: '/Maximum resident set size/ {gsub(/[[:space:]]/, "", $2); print $2}' "$metrics")
+  rss_bytes=$((rss_kib * 1024))
+fi
+
+cat "$output"
+first_seconds=$(sed -n 's/.*first_seconds=\([0-9.]*\).*/\1/p' "$output")
+second_seconds=$(sed -n 's/.*second_seconds=\([0-9.]*\).*/\1/p' "$output")
+
+awk -v first="$first_seconds" -v second="$second_seconds" 'BEGIN { if (first >= 10.0 || second >= 10.0) exit 1 }'
+if (( rss_bytes >= 536870912 )); then
+  echo "NDF release performance failed: peak RSS ${rss_bytes} bytes" >&2
+  exit 1
+fi
+echo "NDF release performance passed: builds ${first_seconds}s/${second_seconds}s, peak RSS ${rss_bytes} bytes"

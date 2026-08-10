@@ -57,9 +57,14 @@ URI such as `ndf://pto-spec/PTO-TILE-CAPACITY` across projects.
 Run:
 
 ```bash
-ndf build --root . --output .ndf-cache/graph.sqlite --format json
-ndf check --root . --format json
+cargo build --locked --release -p ndf-cli
+target/release/ndf build --root . --output .ndf-cache/graph.sqlite --format json
+target/release/ndf check --root . --format json
 ```
+
+When NDF is checked out as a submodule, use its `scripts/ndf` wrapper or invoke
+the built binary through a subprocess and parse only the versioned JSON
+envelope. Do not install or import a Python NDF package.
 
 Do not commit the SQLite database. Commit authored changes, manifests, locks,
 and reviewed evidence instead.

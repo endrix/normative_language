@@ -551,7 +551,7 @@ are not part of the 0.1.0 CLI contract.
 
 **Phase 1 — Format freeze (weeks 1–2).** Write `ndf.yaml` schema, clause grammar, ID rules, edge types, layer ladder as a short normative document — *itself written in NDF*, the first dogfood.
 
-**Phase 2 — Minimum toolchain (weeks 2–6).** `check`, `new-id`, `export`, `trace`, `publish` in Python over a Markdown parser; CI recipe. (Doorstop and Spec Kit demonstrate every needed technique; this is assembly, not research.)
+**Phase 2 — Minimum toolchain (weeks 2–6).** Build the standalone Rust knowledge compiler with `check`, ID allocation, `export`, and `trace`; publish a locked CI recipe and keep the JSON CLI as the automation boundary. (Doorstop and Spec Kit demonstrate every needed technique; this is assembly, not research.)
 
 **Phase 3 — Pilot on a real design (weeks 4–12, overlapping).** A bounded but honest target — e.g., a 4-port L2 Ethernet switch model — with agentic design cycles run spec-first: work orders cite clause IDs, feedback compiles to spec commits, coverage tracked. The pilot's metric is §11's question list.
 
