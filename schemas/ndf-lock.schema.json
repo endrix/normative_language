@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pto-isa.org/ndf/schemas/ndf-lock-0.1.json",
+  "title": "NDF dependency lock",
+  "type": "object",
+  "required": ["format_version", "dependencies"],
+  "properties": {
+    "format_version": {"const": "0.1"},
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["uri", "revision", "path"],
+        "properties": {
+          "uri": {"type": "string"},
+          "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "path": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

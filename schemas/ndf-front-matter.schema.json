@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pto-isa.org/ndf/schemas/ndf-front-matter-0.2.json",
+  "title": "NDF Markdown document front matter",
+  "type": "object",
+  "required": ["doc_id", "status", "authority", "owner"],
+  "properties": {
+    "doc_id": {"type": "string"},
+    "status": {"type": "string"},
+    "authority": {"enum": ["normative", "informative", "generated"]},
+    "owner": {"type": "string"}
+  },
+  "additionalProperties": false
+}

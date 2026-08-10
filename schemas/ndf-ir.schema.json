@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pto-isa.org/ndf/schemas/ndf-ir-0.1.json",
+  "title": "NDF canonical IR export",
+  "type": "object",
+  "required": ["schema_version", "nodes", "edges", "diagnostics"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "nodes": {"type": "array", "items": {"type": "object"}},
+    "edges": {"type": "array", "items": {"type": "object"}},
+    "diagnostics": {
+      "type": "array",
+      "items": {"$ref": "ndf-diagnostic.schema.json"}
+    },
+    "provenance": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

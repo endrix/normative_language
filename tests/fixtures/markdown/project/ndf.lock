@@ -1,0 +1,6 @@
+format_version: "0.1"
+dependencies:
+  pto-spec:
+    uri: https://github.com/PTO-ISA/pto-spec.git
+    revision: 0123456789abcdef0123456789abcdef01234567
+    path: external/pto-spec

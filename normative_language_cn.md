@@ -1,6 +1,6 @@
 # 规范性语言：如何组织高度复杂系统的规范性描述
 
-**状态：** 提案草稿，v0.1
+**状态：** 实验性格式 0.2；规范 IR 0.1
 **读者：** 从事复杂系统（硬件、协议、大型软件）AI 辅助（agentic）设计的工程师、架构师与研究者。
 
 > **译注：** 本文档是 `normative_language.md` 的中文版本，两者必须保持内容一致。修改任一版本时，须在同一次提交中同步更新另一版本。规范性关键词（MUST/SHOULD/MAY 等）、条款 ID、元数据字段、工具命令与代码示例保留英文原样。
@@ -172,7 +172,7 @@ spec/                          # 规范根目录（"圣经"）
 
 ```markdown
 ## Frame admission on ingress {#FWD-ADM-001}
-<!-- ndf: kind=req level=must layer=L1 status=stable since=0.3 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 status=active -->
 
 When a frame arrives on an ingress port, the switch MUST admit it to the
 forwarding pipeline only if all of the following hold:
@@ -224,7 +224,7 @@ Doorstop 式的"一条需求一个 YAML 文件"最大化了机器可处理性，
 
 ````markdown
 ## Weighted round-robin egress scheduling {#SCH-WRR-003}
-<!-- ndf: kind=req level=must layer=L2 model=models/sch_wrr.py -->
+<!-- ndf: kind=requirement modality=must refinement=L2 model=models/sch_wrr.py -->
 
 Egress scheduling among queues of equal priority MUST follow
 weighted round-robin with per-queue weights `w[i]`, deficit-counter
@@ -291,7 +291,7 @@ def select_next(queues, deficit, quantum):
 
 ```markdown
 ## Per-thread reorder-buffer depth {#PRM-ROB-001}
-<!-- ndf: kind=option level=tbd layer=L2 status=draft since=0.4 -->
+<!-- ndf: kind=option level=tbd refinement=L2 status=draft -->
 <!-- ndf: default=64 explore=32,48,64,96,128 unit=entries -->
 <!-- ndf: couples-with=PRM-SMT-001 depends-on=PRM-IQ-001 -->
 
@@ -377,7 +377,7 @@ in the same session overrides the cycle-9 guidance to "check FCS late."
 
 ```markdown
 ## Frame check sequence computation {#R8023-FCS-001}
-<!-- ndf: kind=req level=must origin="IEEE 802.3-2022 §3.2.9" origin-status=verbatim -->
+<!-- ndf: kind=requirement modality=must origin="IEEE 802.3-2022 §3.2.9" origin-status=verbatim -->
 ```
 
 - `origin` 钉住确切的源条款和版本；`origin-status` 取值为 `verbatim`（忠实转述）、`paraphrase`（结构重组，需谨慎对待）或 `interpretation`（我们化解了一处歧义——标记出来供评审，同时也是一条可向上游报告的候选勘误）。
@@ -410,26 +410,122 @@ in the same session overrides the cycle-9 guidance to "check FCS late."
 
 ---
 
-## 8. 工具链（最小可行）
+## 8. 工具链与 NDF 格式 0.2 合同
+
+格式 0.2 规定：Git 中的 Markdown、ASL、源码、测试和证据是唯一可写的
+事实源。NDF 编译器把这些输入归一化为规范 IR 0.1，并可生成 SQLite
+schema v1 作为查询索引。数据库是派生的、可丢弃的，**不得**作为规范状态
+直接编辑。删除数据库后，从相同锁定输入重建，必须产生相同的语义哈希与
+逻辑数据行。
+
+<!-- ndf:format-contract:start -->
+```yaml
+format_version: "0.2"
+ir_version: "0.1"
+machine_output_schema: "0.1"
+derived_index: sqlite-v1
+identity_scheme: ndf
+canonical_fields:
+  - kind
+  - modality
+  - refinement
+  - domain
+  - status
+required_files:
+  - ndf.yaml
+  - ndf.lock
+agent_gate:
+  - build
+  - check
+  - diff
+  - coverage
+maturity:
+  format: experimental
+  ir: experimental
+  cli: experimental
+  plugin_api: experimental
+```
+<!-- ndf:format-contract:end -->
+
+五个规范维度彼此独立：
+
+| 字段 | 含义 | 初始值 |
+|---|---|---|
+| `kind` | 节点是什么 | `document`、`requirement`、`definition`、`architecture`、`constraint`、`option`、`verification`、`decision`、`question`、`model`、`source`、`test`、`evidence`、`information` |
+| `modality` | 规范约束力 | `must`、`should`、`may`、`tbd`，或不适用时省略 |
+| `refinement` | 项目自定义的抽象阶梯 | 通常为 `L0` 至 `L3` |
+| `domain` | 项目拥有的主题命名空间 | 例如 `core`、`tile`、`memory` |
+| `status` | 生命周期 | `draft`、`active`、`deprecated`、`superseded`、`retired`、`open`、`resolved` |
+
+每个项目声明一个小写 project ID。显式身份采用
+`ndf://<project>/<local-id>`，例如
+`ndf://davincioo/PIPE-ISSUE-001`。短 ID 只在声明它的项目内部有效；
+跨项目引用必须使用完整 URI。重要文档和条款使用跨文件移动仍保持不变的
+显式 ID；普通源码和测试工件可以使用确定性派生 ID。
+
+Markdown 文件使用 YAML front matter 声明文档身份、权威和所有者：
+
+```yaml
+---
+doc_id: DOC-DAVINCIOO-PIPELINE
+status: active
+authority: normative
+owner: core
+---
+```
+
+条款元数据把五个规范维度分开：
+
+```markdown
+## Issue contract {#PIPE-ISSUE-001}
+<!-- ndf: kind=requirement modality=must refinement=L1 domain=core status=active -->
+
+The core MUST issue no more than two instructions per cycle.
+```
+
+`ndf.yaml` 声明项目根、ID 前缀、domain、策略和命名依赖；`ndf.lock`
+把每个依赖锁定到精确的 40 位十六进制 Git commit。发布与 CI 构建必须按
+lock 校验已检出的依赖，禁止获取未锁定分支。脏的本地覆盖不是发布构建，
+除非项目策略明确允许。
+
+旧语法只能通过具名 adapter 接受。DavinciOO adapter 把 `kind=req`、
+`level=must`、`layer=L1`、`status=stable` 映射为规范的
+`kind=requirement`、`modality=must`、`refinement=L1`、`status=active`，
+并发出 `NDF-MIG-001`。PTO adapter 把 ASL `kind`/`level` 映射为规范的
+kind/refinement，把 ASL `layer` 映射为 domain，把 ASL 生命周期映射为
+规范 status。adapter 映射不得改变 PTO-SPEC ASL 的权威性。
+
+每个面向机器的命令都输出 JSON schema 0.1，含 `schema_version`、
+`command`、`ok`、`data`、`diagnostics`。Agent 在依赖图的工作前必须构建
+或刷新索引，提交前必须运行 `check`，移动或规范变更必须检查语义 `diff`，
+并报告覆盖率影响。重复 ID 与非确定性构建不可被 baseline 豁免。
+
+格式、IR、机器输出 schema、CLI 拼写与 plugin API 独立成熟。release
+0.1.0 中五者均为 experimental。未来版本可以提升某一个经过度量的表面，
+而不隐含其余表面也稳定。
+
+---
+
+### 已实现命令
 
 刻意做小；每一件都是直白的工程：
 
 | 工具 | 功能 |
 |---|---|
-| `ndf new-id` | 签发无冲突的条款 ID |
+| `ndf build` | 归一化锁定输入并生成可丢弃的 SQLite 索引 |
 | `ndf check` | Lint：悬空引用、重复 ID、关键词纪律、层间一致性标记、术语漂移；在 CI 中运行 |
+| `ndf show ID` | 显示一个规范索引节点 |
 | `ndf trace ID` | 打印某条款的精化/依赖子树 |
-| `ndf log ID` | 跨文件移动的条款级历史 |
-| `ndf diff A..B` | 基线之间的语义变更日志 |
-| `ndf coverage` | L1→验证覆盖率；TBD 普查；开放 `option` 普查；`Q-` 状态 |
-| `ndf deps` | 外部参考依赖面 |
-| `ndf options` | 列出设计空间参数：默认值、范围、耦合图、开放/关闭状态（§4.8） |
-| `ndf export` | 把树炸开为 JSON 记录（供查询、RAG 索引、仪表盘） |
-| `ndf publish` | 渲染书籍视图（HTML/PDF），含追踪矩阵 |
-| `ndf ingest` | Agent 辅助的参考文档投影（§6.2） |
-| `models/` 运行器 | 把参考模型及其测试作为规范构建的一部分执行 |
+| `ndf report coverage` | L1→验证覆盖率、TBD 与开放项普查 |
+| `ndf report dependencies` | 从 `ndf.lock` 解析并报告精确兼容性元组 |
+| `ndf diff BEFORE AFTER` | 物化基线之间的语义变更日志 |
+| `ndf export` | 导出确定性 NDF JSON，供评审、RAG 和仪表盘使用 |
+| `ndf id allocate PREFIX` | 分配下一个本地 ID；合并时的重复检查仍是最终权威 |
+| `ndf fix` | 应用或检查仅格式与生成导航相关的安全修复 |
 
-一切都在纯文件上运作；没有服务器，没有数据库。JSON 导出是通往团队所用的任何 agent 框架或搜索索引的桥梁。
+规范状态仍是纯文件，不需要服务器。SQLite 是可重建的本地查询索引，绝非
+创作权威。`publish`、`ingest`、条款历史和 option-space 命令仍是规划中
+的表面，不属于 0.1.0 CLI 合同。
 
 ---
 
@@ -541,7 +637,7 @@ layers: {L0: intent, L1: contract, L2: mechanism, L3: executable}
 
 ```markdown
 ## Chronometer intent {#CHR-000}
-<!-- ndf: kind=arch level=must layer=L0 status=stable since=0.1 -->
+<!-- ndf: kind=architecture modality=must refinement=L0 status=active -->
 
 A digital chronometer measures elapsed time in whole seconds while
 running, controlled by two momentary push-buttons — RESET and
@@ -554,7 +650,7 @@ resolution, power management.
 
 ```markdown
 ## Definitions {#DEF-001}
-<!-- ndf: kind=def level=must layer=L1 status=stable since=0.1 -->
+<!-- ndf: kind=definition modality=must refinement=L1 status=active -->
 
 - **running / stopped** — the two states of the chronometer; the
   count advances only while *running*.
@@ -568,7 +664,7 @@ resolution, power management.
 
 ```markdown
 ## External pins {#PIN-001}
-<!-- ndf: kind=req level=must layer=L1 status=stable since=0.1 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 status=active -->
 
 The design MUST expose exactly the following interface:
 
@@ -591,21 +687,21 @@ design's responsibility ([[CTL-DEB-001]]).
 
 ```markdown
 ## Start/stop toggling {#CTL-SS-001}
-<!-- ndf: kind=req level=must layer=L1 refines=CHR-000 status=stable since=0.1 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 refines=CHR-000 status=active -->
 
 Each press of START/STOP MUST toggle the state: stopped → running,
 running → stopped. Stopping MUST preserve the current count; a
 subsequent start MUST resume from the preserved count.
 
 ## Reset {#CTL-RST-001}
-<!-- ndf: kind=req level=must layer=L1 refines=CHR-000 status=stable since=0.1 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 refines=CHR-000 status=active -->
 
 A press of RESET MUST set the count to 00 and MUST force the state to
 stopped, regardless of the current state. See [[D-0001 | D-0001]] for
 the rejected "reset keeps running" alternative.
 
 ## Button conditioning {#CTL-DEB-001}
-<!-- ndf: kind=req level=must layer=L1 refines=CHR-000 status=draft since=0.1 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 refines=CHR-000 status=draft -->
 <!-- ndf: blocks-by=Q-001 -->
 
 Each raw button input MUST be synchronized to `clk` (min. 2 flops) and
@@ -620,7 +716,7 @@ alone ([[CTL-RST-001]] wins).
 
 ```markdown
 ## Counting contract {#CNT-001}
-<!-- ndf: kind=req level=must layer=L1 refines=CHR-000 status=stable since=0.2 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 refines=CHR-000 status=active -->
 
 While running, the count MUST increment by one exactly once per
 elapsed second, with long-term rate accuracy limited only by the
@@ -629,14 +725,14 @@ while stopped. On incrementing past 99 the count MUST wrap to 00 and
 continue ([[D-0001]]).
 
 ## Second-tick generation {#CNT-TCK-010}
-<!-- ndf: kind=req level=must layer=L2 refines=CNT-001 status=stable since=0.2 -->
+<!-- ndf: kind=requirement modality=must refinement=L2 refines=CNT-001 status=active -->
 
 A modulo-32768 divider on `clk` MUST generate a one-cycle `tick`
 pulse each second. RESET ([[CTL-RST-001]]) MUST also clear the
 divider, so the first second after reset is full-length.
 
 ## BCD counter {#CNT-BCD-010}
-<!-- ndf: kind=req level=must layer=L2 refines=CNT-001 status=stable since=0.2 -->
+<!-- ndf: kind=requirement modality=must refinement=L2 refines=CNT-001 status=active -->
 
 The count MUST be maintained as two cascaded decade counters (units,
 tens), never holding a non-BCD value; on `tick` while running:
@@ -647,7 +743,7 @@ units 9→0 carries into tens, tens 9→0 wraps the whole count to 00.
 
 ```markdown
 ## Display encoding {#DSP-001}
-<!-- ndf: kind=req level=must layer=L1 refines=CHR-000 status=stable since=0.1 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 refines=CHR-000 status=active -->
 
 `sec_hi`/`sec_lo` MUST continuously present the current count as BCD
 ([[DEF-001]]) with no blanking, multiplexing, or intermediate
@@ -659,7 +755,7 @@ atomically within one `clk` cycle.
 
 ```markdown
 ## Clock source {#CON-CLK-001}
-<!-- ndf: kind=constraint level=must layer=L1 status=stable since=0.1 -->
+<!-- ndf: kind=constraint modality=must refinement=L1 status=active -->
 
 The system clock is 32.768 kHz (watch crystal). The design MUST meet
 timing at this frequency; it MAY be functional above it.
@@ -693,20 +789,20 @@ class Chrono:
 
 ```markdown
 ## Control sequence equivalence {#VER-CTL-001}
-<!-- ndf: kind=verif level=must layer=L3 verifies=CTL-SS-001,CTL-RST-001,CNT-001 -->
+<!-- ndf: kind=verification modality=must refinement=L3 verifies=CTL-SS-001,CTL-RST-001,CNT-001 -->
 
 The DUT MUST match `models/chrono.py` on 1,000 randomized sequences
 of {press_reset, press_startstop, tick} (10,000 events each),
 comparing `(count, running)` after every event.
 
 ## Wrap behavior {#VER-CNT-002}
-<!-- ndf: kind=verif level=must layer=L3 verifies=CNT-001,CNT-BCD-010 -->
+<!-- ndf: kind=verification modality=must refinement=L3 verifies=CNT-001,CNT-BCD-010 -->
 
 Directed test: from reset, run 100 ticks; outputs MUST read 99 at
 tick 99 and 00 at tick 100 with `running` still asserted.
 
 ## Output BCD invariant {#VER-DSP-003}
-<!-- ndf: kind=verif level=must layer=L3 verifies=DSP-001 -->
+<!-- ndf: kind=verification modality=must refinement=L3 verifies=DSP-001 -->
 
 Assertion, all tests: `sec_hi <= 9 && sec_lo <= 9` at every clock
 edge, including during carry propagation.

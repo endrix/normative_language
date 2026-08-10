@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pto-isa.org/ndf/schemas/ndf-evidence-0.1.json",
+  "title": "NDF evidence manifest",
+  "type": "object",
+  "required": ["format_version", "id", "command", "result", "tool_version", "source_revision", "timestamp", "links"],
+  "properties": {
+    "format_version": {"const": "0.1"},
+    "id": {"type": "string"},
+    "command": {"type": "string"},
+    "result": {"enum": ["pass", "fail", "inconclusive"]},
+    "tool_version": {"type": "string"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["clause", "type"],
+        "properties": {
+          "clause": {"type": "string"},
+          "type": {"const": "evidenced-by"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

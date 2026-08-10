@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pto-isa.org/ndf/schemas/ndf-diagnostic-baseline-0.1.json",
+  "title": "NDF diagnostic baseline",
+  "type": "object",
+  "required": ["format_version", "entries"],
+  "properties": {
+    "format_version": {"const": "0.1"},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fingerprint", "code", "severity", "subject", "path", "owner", "expires"],
+        "properties": {
+          "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "code": {"type": "string"},
+          "severity": {"enum": ["information", "warning", "error"]},
+          "subject": {"type": "string"},
+          "path": {"type": "string"},
+          "owner": {"type": "string"},
+          "expires": {"type": "string", "format": "date"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
