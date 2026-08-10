@@ -1,6 +1,6 @@
 # Normative Language: Organizing the Normative Description of Highly Complicated Systems
 
-**Status:** Draft proposal, v0.1
+**Status:** Experimental format 0.2; canonical IR 0.1
 **Audience:** Engineers, architects, and researchers working on AI-assisted (agentic) design of complex systems — hardware, protocols, and large software.
 
 > **Translation note:** A Chinese version of this document is maintained as `normative_language_cn.md`. The two versions must be kept consistent: any edit to one must be mirrored in the other within the same commit.
@@ -172,7 +172,7 @@ The atomic normative unit is the **clause**: a heading-delimited block in a Mark
 
 ```markdown
 ## Frame admission on ingress {#FWD-ADM-001}
-<!-- ndf: kind=req level=must layer=L1 status=stable since=0.3 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 status=active -->
 
 When a frame arrives on an ingress port, the switch MUST admit it to the
 forwarding pipeline only if all of the following hold:
@@ -224,7 +224,7 @@ A clause body may contain code blocks marked normative:
 
 ````markdown
 ## Weighted round-robin egress scheduling {#SCH-WRR-003}
-<!-- ndf: kind=req level=must layer=L2 model=models/sch_wrr.py -->
+<!-- ndf: kind=requirement modality=must refinement=L2 model=models/sch_wrr.py -->
 
 Egress scheduling among queues of equal priority MUST follow
 weighted round-robin with per-queue weights `w[i]`, deficit-counter
@@ -291,7 +291,7 @@ We give these first-class status as the `option` clause kind. An `option` clause
 
 ```markdown
 ## Per-thread reorder-buffer depth {#PRM-ROB-001}
-<!-- ndf: kind=option level=tbd layer=L2 status=draft since=0.4 -->
+<!-- ndf: kind=option level=tbd refinement=L2 status=draft -->
 <!-- ndf: default=64 explore=32,48,64,96,128 unit=entries -->
 <!-- ndf: couples-with=PRM-SMT-001 depends-on=PRM-IQ-001 -->
 
@@ -377,7 +377,7 @@ For each external reference, we build a **projection** under `refs/`: the subset
 
 ```markdown
 ## Frame check sequence computation {#R8023-FCS-001}
-<!-- ndf: kind=req level=must origin="IEEE 802.3-2022 §3.2.9" origin-status=verbatim -->
+<!-- ndf: kind=requirement modality=must origin="IEEE 802.3-2022 §3.2.9" origin-status=verbatim -->
 ```
 
 - `origin` pins the exact source clause and edition; `origin-status` is `verbatim` (faithful restatement), `paraphrase` (restructured, needs care), or `interpretation` (we resolved an ambiguity — flagged for review, and a candidate erratum to report upstream).
@@ -410,26 +410,128 @@ Human and agent roles are symmetric with respect to the format — both read cla
 
 ---
 
-## 8. Toolchain (Minimum Viable)
+## 8. Toolchain and NDF Format 0.2 Contract
+
+Format 0.2 keeps authored Markdown, ASL, source, tests, and evidence in Git as
+the only writable source of truth. The NDF compiler normalizes those sources
+into canonical IR 0.1 and may materialize SQLite schema v1 for querying. The
+database is derived, disposable, and MUST NOT be edited as normative state.
+Deleting it and rebuilding from the same locked sources MUST produce the same
+semantic hash and logical rows.
+
+<!-- ndf:format-contract:start -->
+```yaml
+format_version: "0.2"
+ir_version: "0.1"
+machine_output_schema: "0.1"
+derived_index: sqlite-v1
+identity_scheme: ndf
+canonical_fields:
+  - kind
+  - modality
+  - refinement
+  - domain
+  - status
+required_files:
+  - ndf.yaml
+  - ndf.lock
+agent_gate:
+  - build
+  - check
+  - diff
+  - coverage
+maturity:
+  format: experimental
+  ir: experimental
+  cli: experimental
+  plugin_api: experimental
+```
+<!-- ndf:format-contract:end -->
+
+The canonical dimensions are deliberately independent:
+
+| Field | Meaning | Initial values |
+|---|---|---|
+| `kind` | What the node is | `document`, `requirement`, `definition`, `architecture`, `constraint`, `option`, `verification`, `decision`, `question`, `model`, `source`, `test`, `evidence`, `information` |
+| `modality` | Normative force | `must`, `should`, `may`, `tbd`, or absent |
+| `refinement` | Project-defined abstraction ladder | Commonly `L0` through `L3` |
+| `domain` | Project-owned subject namespace | For example `core`, `tile`, or `memory` |
+| `status` | Lifecycle | `draft`, `active`, `deprecated`, `superseded`, `retired`, `open`, `resolved` |
+
+Every project declares a lowercase project ID. Explicit identities use
+`ndf://<project>/<local-id>`, for example
+`ndf://davincioo/PIPE-ISSUE-001`. A short ID is valid only inside its declaring
+project; cross-project references MUST use the complete URI. Important
+documents and clauses use explicit IDs that survive moves. Ordinary source and
+test artifacts may use deterministic derived IDs.
+
+Markdown files declare document ownership and lifecycle in YAML front matter:
+
+```yaml
+---
+doc_id: DOC-DAVINCIOO-PIPELINE
+status: active
+authority: normative
+owner: core
+---
+```
+
+Clause metadata separates the canonical dimensions:
+
+```markdown
+## Issue contract {#PIPE-ISSUE-001}
+<!-- ndf: kind=requirement modality=must refinement=L1 domain=core status=active -->
+
+The core MUST issue no more than two instructions per cycle.
+```
+
+`ndf.yaml` declares project roots, ID prefixes, domains, policies, and named
+dependencies. `ndf.lock` records every dependency at an exact 40-hex Git
+commit. Release and CI builds MUST resolve checked-out dependencies against
+that lock and MUST NOT fetch an unpinned branch. Local dirty overrides are
+non-release unless an explicit project policy allows them.
+
+Legacy syntax is accepted only through named adapters. The DavinciOO adapter
+maps `kind=req`, `level=must`, `layer=L1`, and `status=stable` to canonical
+`kind=requirement`, `modality=must`, `refinement=L1`, and `status=active`, while
+emitting `NDF-MIG-001`. The PTO adapter maps ASL `kind` and `level` to canonical
+kind and refinement, ASL `layer` to domain, and ASL lifecycle to canonical
+status. Adapter mappings MUST NOT change PTO-SPEC ASL authority.
+
+Every machine-facing command emits JSON schema 0.1 with `schema_version`,
+`command`, `ok`, `data`, and `diagnostics`. Agents MUST build or refresh the
+index before graph-dependent work, run `check` before committing, inspect
+semantic `diff` for moves or normative changes, and report coverage impact.
+Duplicate IDs and non-deterministic builds are never baseline-waivable.
+
+Format, IR, machine-output schema, CLI spelling, and plugin API mature
+independently. All five surfaces are experimental in release 0.1.0. A future
+release may promote a measured surface without implying stability for the
+others.
+
+---
+
+### Implemented commands
 
 Deliberately small; each piece is straightforward engineering:
 
 | Tool | Function |
 |---|---|
-| `ndf new-id` | Issue collision-free clause IDs |
+| `ndf build` | Normalize locked sources and materialize a disposable SQLite index |
 | `ndf check` | Lint: dangling refs, duplicate IDs, keyword discipline, layer-consistency flags, glossary drift; runs in CI |
+| `ndf show ID` | Show one canonical indexed node |
 | `ndf trace ID` | Print refinement/dependency subtree for a clause |
-| `ndf log ID` | Clause-level history across file moves |
-| `ndf diff A..B` | Semantic changelog between baselines |
-| `ndf coverage` | L1→verification coverage; TBD census; open-`option` census; `Q-` status |
-| `ndf deps` | External-reference dependency surface |
-| `ndf options` | List design-space parameters: defaults, ranges, coupling graph, open/closed status (§4.8) |
-| `ndf export` | Explode tree to JSON records (for querying, RAG indexing, dashboards) |
-| `ndf publish` | Render book view (HTML/PDF) with trace matrices |
-| `ndf ingest` | Agent-assisted reference-document projection (§6.2) |
-| `models/` runner | Execute reference models & their tests as part of the spec build |
+| `ndf report coverage` | L1→verification coverage, TBD census, and open-item census |
+| `ndf report dependencies` | Resolve and report the exact compatibility tuple from `ndf.lock` |
+| `ndf diff BEFORE AFTER` | Semantic changelog between materialized baselines |
+| `ndf export` | Export deterministic NDF JSON for review, RAG, and dashboards |
+| `ndf id allocate PREFIX` | Allocate the next local ID; merge-time duplicate checking remains authoritative |
+| `ndf fix` | Apply or check formatting-only and generated-navigation fixes |
 
-Everything operates on plain files; no server, no database. The JSON export is the bridge to whatever agent framework or search index a team uses.
+Authored state remains plain files and no server is required. SQLite is a
+rebuildable local query index, never an authored authority. `publish`,
+`ingest`, clause history, and option-space commands remain planned surfaces and
+are not part of the 0.1.0 CLI contract.
 
 ---
 
@@ -541,7 +643,7 @@ layers: {L0: intent, L1: contract, L2: mechanism, L3: executable}
 
 ```markdown
 ## Chronometer intent {#CHR-000}
-<!-- ndf: kind=arch level=must layer=L0 status=stable since=0.1 -->
+<!-- ndf: kind=architecture modality=must refinement=L0 status=active -->
 
 A digital chronometer measures elapsed time in whole seconds while
 running, controlled by two momentary push-buttons — RESET and
@@ -554,7 +656,7 @@ resolution, power management.
 
 ```markdown
 ## Definitions {#DEF-001}
-<!-- ndf: kind=def level=must layer=L1 status=stable since=0.1 -->
+<!-- ndf: kind=definition modality=must refinement=L1 status=active -->
 
 - **running / stopped** — the two states of the chronometer; the
   count advances only while *running*.
@@ -568,7 +670,7 @@ resolution, power management.
 
 ```markdown
 ## External pins {#PIN-001}
-<!-- ndf: kind=req level=must layer=L1 status=stable since=0.1 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 status=active -->
 
 The design MUST expose exactly the following interface:
 
@@ -591,21 +693,21 @@ design's responsibility ([[CTL-DEB-001]]).
 
 ```markdown
 ## Start/stop toggling {#CTL-SS-001}
-<!-- ndf: kind=req level=must layer=L1 refines=CHR-000 status=stable since=0.1 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 refines=CHR-000 status=active -->
 
 Each press of START/STOP MUST toggle the state: stopped → running,
 running → stopped. Stopping MUST preserve the current count; a
 subsequent start MUST resume from the preserved count.
 
 ## Reset {#CTL-RST-001}
-<!-- ndf: kind=req level=must layer=L1 refines=CHR-000 status=stable since=0.1 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 refines=CHR-000 status=active -->
 
 A press of RESET MUST set the count to 00 and MUST force the state to
 stopped, regardless of the current state. See [[D-0001 | D-0001]] for
 the rejected "reset keeps running" alternative.
 
 ## Button conditioning {#CTL-DEB-001}
-<!-- ndf: kind=req level=must layer=L1 refines=CHR-000 status=draft since=0.1 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 refines=CHR-000 status=draft -->
 <!-- ndf: blocks-by=Q-001 -->
 
 Each raw button input MUST be synchronized to `clk` (min. 2 flops) and
@@ -620,7 +722,7 @@ alone ([[CTL-RST-001]] wins).
 
 ```markdown
 ## Counting contract {#CNT-001}
-<!-- ndf: kind=req level=must layer=L1 refines=CHR-000 status=stable since=0.2 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 refines=CHR-000 status=active -->
 
 While running, the count MUST increment by one exactly once per
 elapsed second, with long-term rate accuracy limited only by the
@@ -629,14 +731,14 @@ while stopped. On incrementing past 99 the count MUST wrap to 00 and
 continue ([[D-0001]]).
 
 ## Second-tick generation {#CNT-TCK-010}
-<!-- ndf: kind=req level=must layer=L2 refines=CNT-001 status=stable since=0.2 -->
+<!-- ndf: kind=requirement modality=must refinement=L2 refines=CNT-001 status=active -->
 
 A modulo-32768 divider on `clk` MUST generate a one-cycle `tick`
 pulse each second. RESET ([[CTL-RST-001]]) MUST also clear the
 divider, so the first second after reset is full-length.
 
 ## BCD counter {#CNT-BCD-010}
-<!-- ndf: kind=req level=must layer=L2 refines=CNT-001 status=stable since=0.2 -->
+<!-- ndf: kind=requirement modality=must refinement=L2 refines=CNT-001 status=active -->
 
 The count MUST be maintained as two cascaded decade counters (units,
 tens), never holding a non-BCD value; on `tick` while running:
@@ -647,7 +749,7 @@ units 9→0 carries into tens, tens 9→0 wraps the whole count to 00.
 
 ```markdown
 ## Display encoding {#DSP-001}
-<!-- ndf: kind=req level=must layer=L1 refines=CHR-000 status=stable since=0.1 -->
+<!-- ndf: kind=requirement modality=must refinement=L1 refines=CHR-000 status=active -->
 
 `sec_hi`/`sec_lo` MUST continuously present the current count as BCD
 ([[DEF-001]]) with no blanking, multiplexing, or intermediate
@@ -659,7 +761,7 @@ atomically within one `clk` cycle.
 
 ```markdown
 ## Clock source {#CON-CLK-001}
-<!-- ndf: kind=constraint level=must layer=L1 status=stable since=0.1 -->
+<!-- ndf: kind=constraint modality=must refinement=L1 status=active -->
 
 The system clock is 32.768 kHz (watch crystal). The design MUST meet
 timing at this frequency; it MAY be functional above it.
@@ -693,20 +795,20 @@ class Chrono:
 
 ```markdown
 ## Control sequence equivalence {#VER-CTL-001}
-<!-- ndf: kind=verif level=must layer=L3 verifies=CTL-SS-001,CTL-RST-001,CNT-001 -->
+<!-- ndf: kind=verification modality=must refinement=L3 verifies=CTL-SS-001,CTL-RST-001,CNT-001 -->
 
 The DUT MUST match `models/chrono.py` on 1,000 randomized sequences
 of {press_reset, press_startstop, tick} (10,000 events each),
 comparing `(count, running)` after every event.
 
 ## Wrap behavior {#VER-CNT-002}
-<!-- ndf: kind=verif level=must layer=L3 verifies=CNT-001,CNT-BCD-010 -->
+<!-- ndf: kind=verification modality=must refinement=L3 verifies=CNT-001,CNT-BCD-010 -->
 
 Directed test: from reset, run 100 ticks; outputs MUST read 99 at
 tick 99 and 00 at tick 100 with `running` still asserted.
 
 ## Output BCD invariant {#VER-DSP-003}
-<!-- ndf: kind=verif level=must layer=L3 verifies=DSP-001 -->
+<!-- ndf: kind=verification modality=must refinement=L3 verifies=DSP-001 -->
 
 Assertion, all tests: `sec_hi <= 9 && sec_lo <= 9` at every clock
 edge, including during carry propagation.
