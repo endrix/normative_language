@@ -1,6 +1,8 @@
 //! NDF parsing, validation, indexing, and query workflows.
 
+pub mod adapters;
 pub mod baseline;
+pub mod dependencies;
 pub mod diff;
 pub mod export;
 pub mod index;
