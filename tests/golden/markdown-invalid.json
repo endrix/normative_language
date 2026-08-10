@@ -1,0 +1,197 @@
+{
+  "duplicate.md": {
+    "diagnostics": [
+      {
+        "code": "NDF-MD-002",
+        "message": "duplicate NDF metadata key: kind",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 11,
+          "path": "duplicate.md"
+        },
+        "related": [],
+        "repair": "Keep exactly one value for each metadata key.",
+        "severity": "error",
+        "subject": null
+      }
+    ],
+    "edges": [],
+    "nodes": [
+      {
+        "attributes": {
+          "authority": "normative"
+        },
+        "body": "",
+        "domain": null,
+        "id": "ndf://fixture/DOC-FIXTURE-DUPLICATE",
+        "kind": "document",
+        "modality": null,
+        "owner": "core",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "duplicate.md"
+        },
+        "status": "active",
+        "title": "Duplicate metadata"
+      }
+    ],
+    "schema_version": "0.1"
+  },
+  "legacy.md": {
+    "diagnostics": [
+      {
+        "code": "NDF-MIG-001",
+        "message": "legacy DavinciOO metadata was mapped to canonical fields",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 11,
+          "path": "legacy.md"
+        },
+        "related": [],
+        "repair": "Rewrite the clause with kind, modality, refinement, and status.",
+        "severity": "information",
+        "subject": null
+      }
+    ],
+    "edges": [],
+    "nodes": [
+      {
+        "attributes": {
+          "authority": "normative"
+        },
+        "body": "",
+        "domain": null,
+        "id": "ndf://fixture/DOC-FIXTURE-LEGACY",
+        "kind": "document",
+        "modality": null,
+        "owner": "core",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "legacy.md"
+        },
+        "status": "active",
+        "title": "Legacy metadata"
+      },
+      {
+        "attributes": {},
+        "body": "The core MUST stop.",
+        "domain": null,
+        "id": "ndf://fixture/PIPE-LEGACY-001",
+        "kind": "requirement",
+        "modality": "must",
+        "owner": "core",
+        "refinement": "L1",
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 10,
+          "path": "legacy.md"
+        },
+        "status": "active",
+        "title": "Contract"
+      }
+    ],
+    "schema_version": "0.1"
+  },
+  "unclosed.md": {
+    "diagnostics": [
+      {
+        "code": "NDF-MD-001",
+        "message": "NDF metadata comment is not closed",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 11,
+          "path": "unclosed.md"
+        },
+        "related": [],
+        "repair": "Close the metadata comment with --> on the same line.",
+        "severity": "error",
+        "subject": null
+      }
+    ],
+    "edges": [],
+    "nodes": [
+      {
+        "attributes": {
+          "authority": "normative"
+        },
+        "body": "",
+        "domain": null,
+        "id": "ndf://fixture/DOC-FIXTURE-UNCLOSED",
+        "kind": "document",
+        "modality": null,
+        "owner": "core",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "unclosed.md"
+        },
+        "status": "active",
+        "title": "Unclosed metadata"
+      }
+    ],
+    "schema_version": "0.1"
+  },
+  "unsupported.md": {
+    "diagnostics": [
+      {
+        "code": "NDF-MD-003",
+        "message": "unsupported NDF metadata field: priority",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 11,
+          "path": "unsupported.md"
+        },
+        "related": [],
+        "repair": "Remove the field or register it in the project format.",
+        "severity": "error",
+        "subject": null
+      }
+    ],
+    "edges": [],
+    "nodes": [
+      {
+        "attributes": {
+          "authority": "normative"
+        },
+        "body": "",
+        "domain": null,
+        "id": "ndf://fixture/DOC-FIXTURE-UNSUPPORTED",
+        "kind": "document",
+        "modality": null,
+        "owner": "core",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "unsupported.md"
+        },
+        "status": "active",
+        "title": "Unsupported metadata"
+      }
+    ],
+    "schema_version": "0.1"
+  }
+}

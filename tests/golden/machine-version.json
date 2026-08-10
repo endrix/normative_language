@@ -1,0 +1,10 @@
+{
+  "exit_code": 0,
+  "payload": {
+    "cli_stability": "experimental",
+    "format_version": "0.2",
+    "ir_version": "0.1",
+    "plugin_api": "experimental",
+    "tool_version": "0.1.0"
+  }
+}

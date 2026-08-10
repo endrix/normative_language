@@ -1,0 +1,77 @@
+{
+  "edge_count": 1,
+  "node_count": 2,
+  "rows": {
+    "aliases": [],
+    "baselines": [],
+    "builds": [
+      [
+        1,
+        "1",
+        "14aa2013a1ce4b0abf1c0907649a687071bfc61ebbd5e2c0959681ff88cac91d",
+        "0.2",
+        "0.1",
+        "0.1.0"
+      ]
+    ],
+    "diagnostics": [],
+    "edges": [
+      [
+        1,
+        "ndf://fixture/PIPE-020",
+        "refines",
+        "ndf://fixture/PIPE-010",
+        "docs/pipeline.md",
+        20,
+        "{}"
+      ]
+    ],
+    "node_attrs": [],
+    "nodes": [
+      [
+        "ndf://fixture/PIPE-010",
+        "fixture",
+        "PIPE-010",
+        "requirement",
+        "Contract",
+        "docs/pipeline.md",
+        10,
+        1,
+        null,
+        null,
+        null,
+        "active",
+        "core",
+        "The core MUST issue in order."
+      ],
+      [
+        "ndf://fixture/PIPE-020",
+        "fixture",
+        "PIPE-020",
+        "architecture",
+        "Mechanism",
+        "docs/pipeline.md",
+        20,
+        1,
+        null,
+        null,
+        null,
+        "active",
+        "core",
+        ""
+      ]
+    ],
+    "projects": [
+      [
+        "fixture",
+        "1111111111111111111111111111111111111111"
+      ]
+    ],
+    "sources": [
+      [
+        "docs/pipeline.md"
+      ]
+    ]
+  },
+  "semantic_hash": "14aa2013a1ce4b0abf1c0907649a687071bfc61ebbd5e2c0959681ff88cac91d"
+}
