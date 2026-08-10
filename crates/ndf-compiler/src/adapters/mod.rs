@@ -1,6 +1,9 @@
 use std::path::Path;
 
-use ndf_core::model::ParseResult;
+use globset::{Glob, GlobSetBuilder};
+use ndf_core::graph::GraphBuilder;
+use ndf_core::model::{Graph, ParseResult};
+use walkdir::WalkDir;
 
 use crate::CompilerError;
 use crate::manifest::ProjectManifest;
@@ -60,4 +63,57 @@ pub fn adapter_for(path: &Path) -> Option<&'static dyn Adapter> {
         Some("json") => Some(&EVIDENCE),
         _ => None,
     }
+}
+
+pub fn parse_project(manifest: &ProjectManifest) -> Result<Graph, CompilerError> {
+    let mut globs = GlobSetBuilder::new();
+    for pattern in &manifest.roots {
+        globs.add(Glob::new(pattern).map_err(|error| {
+            CompilerError::Contract(format!("invalid project root glob {pattern}: {error}"))
+        })?);
+    }
+    let globs = globs
+        .build()
+        .map_err(|error| CompilerError::Contract(format!("invalid project root globs: {error}")))?;
+    let mut paths = Vec::new();
+    for entry in WalkDir::new(&manifest.root) {
+        let entry = entry.map_err(|error| {
+            CompilerError::Contract(format!(
+                "failed to walk project {}: {error}",
+                manifest.root.display()
+            ))
+        })?;
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let relative = entry
+            .path()
+            .strip_prefix(&manifest.root)
+            .expect("walked path is under project root");
+        if globs.is_match(relative) {
+            paths.push(entry.path().to_path_buf());
+        }
+    }
+    paths.sort();
+
+    let mut graph = GraphBuilder::default();
+    for path in paths {
+        let adapter = adapter_for(&path).ok_or_else(|| {
+            CompilerError::Contract(format!(
+                "no built-in adapter for project source: {}",
+                path.display()
+            ))
+        })?;
+        let parsed = adapter.parse(&path, manifest)?;
+        for node in parsed.nodes {
+            graph.add_node(node);
+        }
+        for edge in parsed.edges {
+            graph.add_edge(edge);
+        }
+        for diagnostic in parsed.diagnostics {
+            graph.add_diagnostic(diagnostic);
+        }
+    }
+    Ok(graph.finish())
 }

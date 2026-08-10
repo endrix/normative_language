@@ -396,9 +396,11 @@ version = "0.1.0"
 dependencies = [
  "assert_cmd",
  "clap",
+ "ndf-compiler",
  "ndf-core",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

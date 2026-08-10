@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use ndf_core::identity::NodeId;
 use ndf_core::model::{Diagnostic, Graph, SourceSpan};
-use rusqlite::{Connection, Row, Transaction, params, params_from_iter};
+use rusqlite::{Connection, OpenFlags, Row, Transaction, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -89,7 +89,7 @@ pub struct NdfIndex {
 
 impl NdfIndex {
     pub fn open(path: &Path) -> Result<Self, CompilerError> {
-        let connection = Connection::open(path)?;
+        let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         connection.pragma_update(None, "foreign_keys", true)?;
         Ok(Self { connection })
     }

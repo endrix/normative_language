@@ -5,6 +5,8 @@ pub mod baseline;
 pub mod dependencies;
 pub mod diff;
 pub mod export;
+pub mod fix;
+pub mod id_allocator;
 pub mod index;
 pub mod manifest;
 pub mod markdown;
