@@ -6,19 +6,26 @@ truth; generated indexes are disposable query artifacts.
 
 ## Development
 
-NDF requires Python 3.11 or newer.
+NDF requires Rust 1.94.0. The repository is a locked Cargo workspace:
 
 ```bash
-python -m pip install -r requirements-lock.txt
-python -m pip install -e . --no-deps
-python -m unittest discover -s tests -p 'test_*.py'
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features --locked
+cargo build --workspace --release --locked
 ```
 
 Print the independently versioned public surfaces with:
 
 ```bash
-ndf --machine-version
+scripts/ndf --machine-version
 ```
+
+`ndf-core` owns canonical identities, graph types, and public version constants.
+`ndf-compiler` owns adapters, validation, SQLite materialization, and graph
+workflows. `ndf-cli` is the only supported automation interface. NDF ships no
+Python package or Python bindings; downstream tools invoke the versioned JSON
+CLI from an exact Git pin.
 
 ## Documentation
 
