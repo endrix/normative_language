@@ -42,6 +42,7 @@ class ProjectManifest:
     domains: tuple[str, ...]
     policies: tuple[tuple[str, Any], ...]
     root: Path
+    dependencies: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -89,6 +90,7 @@ def load_manifest(path: Path) -> ProjectManifest:
         "id_prefixes",
         "domains",
         "policies",
+        "dependencies",
     }
     unknown = sorted(set(mapping) - allowed)
     if unknown:
@@ -103,12 +105,20 @@ def load_manifest(path: Path) -> ProjectManifest:
     )
     domains = _string_tuple(mapping.get("domains", []), "domains")
     policies = mapping.get("policies", {})
+    dependencies = mapping.get("dependencies", {})
     if not isinstance(format_version, str):
         raise ValueError("format_version must be a string")
     if not isinstance(project, str):
         raise ValueError("project must be a string")
     if not isinstance(policies, dict):
         raise ValueError("policies must be a mapping")
+    if not isinstance(dependencies, dict):
+        raise ValueError("dependencies must be a mapping")
+    for name, declaration in dependencies.items():
+        if not isinstance(name, str) or not isinstance(declaration, dict):
+            raise ValueError("each dependency declaration must be a named mapping")
+        if set(declaration) != {"path"} or not isinstance(declaration["path"], str):
+            raise ValueError("dependency declaration must contain only a string path")
 
     return ProjectManifest(
         format_version=format_version,
@@ -118,6 +128,7 @@ def load_manifest(path: Path) -> ProjectManifest:
         domains=domains,
         policies=tuple(sorted(policies.items())),
         root=path.parent.resolve(),
+        dependencies=tuple(sorted(dependencies)),
     )
 
 

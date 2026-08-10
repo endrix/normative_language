@@ -5,11 +5,12 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from .diff import semantic_diff
+from .dependencies import resolve_dependencies
 from .export import ExportFormat, export_graph
 from .fix import FixMode, safe_fix
 from .id_allocator import allocate_id
 from .index import BuildProvenance, build_index, open_index
-from .manifest import ProjectManifest, load_manifest
+from .manifest import ProjectManifest, load_lock, load_manifest
 from .model import DiagnosticSeverity, Graph
 from .parsers.markdown import parse_markdown
 from .query import trace
@@ -50,8 +51,9 @@ def _parser() -> argparse.ArgumentParser:
     trace_command.add_argument("--format", choices=("json",), default="json")
 
     report = commands.add_parser("report")
-    report.add_argument("report_name", choices=("coverage",))
+    report.add_argument("report_name", choices=("coverage", "dependencies"))
     report.add_argument("--index", type=Path, default=Path("graph.sqlite"))
+    report.add_argument("--root", type=Path)
     report.add_argument("--format", choices=("json",), default="json")
 
     diff = commands.add_parser("diff")
@@ -206,6 +208,17 @@ def _run(args: argparse.Namespace) -> int:
         with open_index(args.index) as index:
             return _emit("trace", True, trace(index, args.uri, edge_types).to_dict())
     if args.command == "report":
+        if args.report_name == "dependencies":
+            if args.root is None:
+                raise ValueError("--root is required for dependency reports")
+            manifest = load_manifest(args.root / "ndf.yaml")
+            lock = load_lock(args.root / "ndf.lock")
+            resolved = resolve_dependencies(manifest, lock, args.root)
+            return _emit(
+                "report dependencies",
+                True,
+                [project.to_dict() for project in resolved],
+            )
         with open_index(args.index) as index:
             report = coverage(index, CoveragePolicy())
             return _emit("report coverage", True, report.to_dict())

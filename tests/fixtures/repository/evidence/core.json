@@ -1,0 +1,15 @@
+{
+  "format_version": "0.1",
+  "id": "EVID-CORE-001",
+  "command": "python -m unittest tests.test_core",
+  "result": "pass",
+  "tool_version": "Python 3.11",
+  "source_revision": "0123456789abcdef0123456789abcdef01234567",
+  "timestamp": "2026-08-10T10:00:00Z",
+  "links": [
+    {
+      "clause": "ndf://fixture/REQ-001",
+      "type": "evidenced-by"
+    }
+  ]
+}

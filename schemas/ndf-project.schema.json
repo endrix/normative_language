@@ -10,7 +10,16 @@
     "roots": {"type": "array", "items": {"type": "string"}},
     "id_prefixes": {"type": "array", "items": {"type": "string"}},
     "domains": {"type": "array", "items": {"type": "string"}},
-    "policies": {"type": "object"}
+    "policies": {"type": "object"},
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {"path": {"type": "string"}},
+        "additionalProperties": false
+      }
+    }
   },
   "additionalProperties": false
 }
