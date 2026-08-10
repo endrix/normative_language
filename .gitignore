@@ -1,1 +1,9 @@
 .worktrees/
+.venv/
+.ndf-cache/
+build/
+dist/
+*.egg-info/
+*.sqlite
+__pycache__/
+*.py[cod]
