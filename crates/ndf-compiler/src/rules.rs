@@ -66,7 +66,12 @@ pub fn validate_graph(graph: &Graph, policy: &ValidationPolicy) -> Vec<Diagnosti
     }
 
     for node in &graph.nodes {
-        if node.modality == Some(Modality::Must) && !contains_word(&node.body, "MUST") {
+        if matches!(
+            node.kind,
+            NodeKind::Requirement | NodeKind::Constraint | NodeKind::Verification
+        ) && node.modality == Some(Modality::Must)
+            && !contains_word(&node.body, "MUST")
+        {
             diagnostics.push(node_diagnostic(
                 "NDF-MOD-001",
                 format!("must requirement {} does not contain MUST", node.id),

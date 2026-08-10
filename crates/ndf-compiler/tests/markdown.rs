@@ -6,6 +6,7 @@ use ndf_compiler::manifest::ProjectManifest;
 use ndf_compiler::markdown::parse_markdown;
 use ndf_core::model::Graph;
 use serde_json::Value;
+use tempfile::tempdir;
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -57,4 +58,100 @@ fn invalid_and_legacy_markdown_match_the_frozen_contract() {
         .collect();
 
     assert_eq!(actual, expected);
+}
+
+#[test]
+fn davincioo_legacy_metadata_preserves_attributes_and_spaced_provenance() {
+    let directory = tempdir().unwrap();
+    let path = directory.path().join("legacy-davincioo.md");
+    fs::write(
+        &path,
+        r#"---
+doc_id: DOC-DAVINCIOO-LEGACY
+status: active
+authority: normative
+owner: core
+---
+
+# Legacy DavinciOO
+
+## Parent {#PIPE-001}
+<!-- ndf: kind=req level=must layer=L1 status=stable since=0.3 -->
+
+The parent MUST exist.
+
+## Mechanism {#PIPE-010}
+<!-- ndf: kind=arch level=must layer=L2 status=stable since=0.3 author=ndf-projection unit=entries couples-with=PIPE-001 derived-from=docs/layouts/shape-m16 for A C.svg -->
+
+The mechanism MUST preserve provenance.
+
+## Legacy definition {#DEF-001}
+<!-- ndf: kind=def level=must layer=L1 status=stable since=0.1 -->
+
+This term MUST retain its definition kind.
+
+## Superseded contract {#PIPE-020}
+<!-- ndf: kind=req level=must layer=L1 status=superseded-by=PIPE-010 since=0.1 -->
+
+This contract MUST remain traceable after supersession.
+"#,
+    )
+    .unwrap();
+    let manifest = ProjectManifest::for_test(
+        "davincioo",
+        directory.path(),
+        ["DEF", "DOC", "PIPE"],
+        ["core"],
+    );
+
+    let parsed = parse_markdown(&path, &manifest).unwrap();
+    let mechanism = parsed
+        .nodes
+        .iter()
+        .find(|node| node.id.to_string() == "ndf://davincioo/PIPE-010")
+        .unwrap();
+
+    assert_eq!(mechanism.kind, ndf_core::model::NodeKind::Architecture);
+    assert_eq!(mechanism.attributes.get("since").unwrap(), "0.3");
+    assert_eq!(
+        mechanism.attributes.get("author").unwrap(),
+        "ndf-projection"
+    );
+    assert_eq!(mechanism.attributes.get("unit").unwrap(), "entries");
+    assert_eq!(
+        mechanism.attributes.get("derived-from").unwrap(),
+        "docs/layouts/shape-m16 for A C.svg"
+    );
+    assert!(parsed.edges.iter().any(|edge| {
+        edge.edge_type == "couples-with"
+            && edge.source.to_string() == "ndf://davincioo/PIPE-010"
+            && edge.target.to_string() == "ndf://davincioo/PIPE-001"
+    }));
+    let definition = parsed
+        .nodes
+        .iter()
+        .find(|node| node.id.to_string() == "ndf://davincioo/DEF-001")
+        .unwrap();
+    assert_eq!(definition.kind, ndf_core::model::NodeKind::Definition);
+    let superseded = parsed
+        .nodes
+        .iter()
+        .find(|node| node.id.to_string() == "ndf://davincioo/PIPE-020")
+        .unwrap();
+    assert_eq!(
+        superseded.status,
+        ndf_core::model::LifecycleStatus::Superseded
+    );
+    assert_eq!(
+        superseded.attributes.get("superseded-by").unwrap(),
+        "PIPE-010"
+    );
+    assert_eq!(
+        parsed
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code == "NDF-MIG-001")
+            .count(),
+        4
+    );
 }
