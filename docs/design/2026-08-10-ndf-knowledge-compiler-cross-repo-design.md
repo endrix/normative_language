@@ -1,7 +1,7 @@
 # NDF Knowledge Compiler: Cross-Repository Refactoring Design
 
-**Status:** Proposed for review  
-**Date:** 2026-08-10  
+**Status:** Proposed for review
+**Date:** 2026-08-10
 **Repositories:** `PTO-ISA/normative_language`, `PTO-ISA/pto-spec`,
 `hengliao1972/DavinciOO`
 
@@ -395,7 +395,8 @@ and cannot be used as a release baseline.
   implementations
 - compare clause identities and references exported from the complete ASL tree
 - verify no change to ASL authority, build, or release closure
-- verify a pinned generic NDF release is sufficient; no network fetch in CI
+- verify a pinned generic NDF release is sufficient; do not fetch unpinned NDF
+  source in CI
 
 ### 12.3 DavinciOO tests
 
