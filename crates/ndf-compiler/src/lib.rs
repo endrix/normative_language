@@ -1,6 +1,7 @@
 //! NDF parsing, validation, indexing, and query workflows.
 
 pub mod baseline;
+pub mod index;
 pub mod manifest;
 pub mod markdown;
 pub mod rules;
@@ -20,6 +21,15 @@ pub enum CompilerError {
     Yaml {
         path: PathBuf,
         source: serde_yaml_ng::Error,
+    },
+    #[error("SQLite error: {0}")]
+    Sql(#[from] rusqlite::Error),
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("failed to write {path}: {source}")]
+    Write {
+        path: PathBuf,
+        source: std::io::Error,
     },
     #[error("{0}")]
     Contract(String),
