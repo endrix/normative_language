@@ -1,9 +1,13 @@
 //! NDF parsing, validation, indexing, and query workflows.
 
 pub mod baseline;
+pub mod diff;
+pub mod export;
 pub mod index;
 pub mod manifest;
 pub mod markdown;
+pub mod query;
+pub mod report;
 pub mod rules;
 
 use std::path::PathBuf;
