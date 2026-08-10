@@ -31,7 +31,7 @@ class IndexBuild:
 
 
 @dataclass(frozen=True)
-class IndexedNode:
+class NodeRecord:
     id: NodeId
     kind: str
     title: str
@@ -43,6 +43,24 @@ class IndexedNode:
     owner: str | None
     body: str
 
+    def to_dict(self) -> dict:
+        return {
+            "id": str(self.id),
+            "kind": self.kind,
+            "title": self.title,
+            "source": self.source.to_dict(),
+            "modality": self.modality,
+            "refinement": self.refinement,
+            "domain": self.domain,
+            "status": self.status,
+            "owner": self.owner,
+            "body": self.body,
+            "attributes": {},
+        }
+
+
+IndexedNode = NodeRecord
+
 
 @dataclass(frozen=True)
 class IndexedEdge:
@@ -50,6 +68,15 @@ class IndexedEdge:
     target: NodeId
     type: str
     source_span: SourceSpan | None
+
+    def to_dict(self) -> dict:
+        return {
+            "source": str(self.source),
+            "target": str(self.target),
+            "type": self.type,
+            "source_span": self.source_span.to_dict() if self.source_span else None,
+            "attributes": {},
+        }
 
 
 class NdfIndex:
@@ -72,14 +99,18 @@ class NdfIndex:
         row = self._connection.execute("PRAGMA foreign_keys").fetchone()
         return bool(row[0])
 
-    def get_node(self, uri: str) -> IndexedNode | None:
+    def get_node(self, uri: str) -> NodeRecord | None:
         row = self._connection.execute(
             "SELECT * FROM nodes WHERE uri = ?",
             (str(parse_uri(uri)),),
         ).fetchone()
         if row is None:
             return None
-        return IndexedNode(
+        return self._node_record(row)
+
+    @staticmethod
+    def _node_record(row: sqlite3.Row) -> NodeRecord:
+        return NodeRecord(
             id=parse_uri(row["uri"]),
             kind=row["kind"],
             title=row["title"],
@@ -95,6 +126,23 @@ class NdfIndex:
             owner=row["owner"],
             body=row["body"],
         )
+
+    def all_nodes(self) -> tuple[NodeRecord, ...]:
+        rows = self._connection.execute("SELECT * FROM nodes ORDER BY uri")
+        return tuple(self._node_record(row) for row in rows)
+
+    def resolve_uri(self, value: str) -> str:
+        if value.startswith("ndf://"):
+            return str(parse_uri(value))
+        rows = self._connection.execute(
+            "SELECT uri FROM nodes WHERE local_id = ? ORDER BY uri",
+            (value,),
+        ).fetchall()
+        if not rows:
+            raise ValueError(f"unknown NDF ID: {value}")
+        if len(rows) > 1:
+            raise ValueError(f"ambiguous local NDF ID: {value}")
+        return rows[0]["uri"]
 
     def out_edges(
         self,
@@ -153,6 +201,24 @@ class NdfIndex:
         if row is None:
             raise ValueError("index has no build provenance")
         return dict(row)
+
+    def all_edges(self) -> tuple[IndexedEdge, ...]:
+        rows = self._connection.execute(
+            "SELECT * FROM edges ORDER BY source_uri, edge_type, target_uri, edge_id"
+        )
+        return tuple(self._indexed_edge(row) for row in rows)
+
+    def diagnostic_records(self) -> tuple[dict, ...]:
+        rows = self._connection.execute(
+            "SELECT * FROM diagnostics ORDER BY diagnostic_id"
+        )
+        return tuple(dict(row) for row in rows)
+
+    def project_revisions(self) -> dict[str, str]:
+        rows = self._connection.execute(
+            "SELECT project_id, revision FROM projects ORDER BY project_id"
+        )
+        return {row["project_id"]: row["revision"] for row in rows}
 
 
 def open_index(path: Path) -> NdfIndex:

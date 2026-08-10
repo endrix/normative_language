@@ -11,6 +11,9 @@
     "diagnostics": {
       "type": "array",
       "items": {"$ref": "ndf-diagnostic.schema.json"}
+    },
+    "provenance": {
+      "type": "object"
     }
   },
   "additionalProperties": false
