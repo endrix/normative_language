@@ -4,6 +4,45 @@
     "edges": [
       {
         "attributes": {},
+        "source": "ndf://pto-spec/PTO-TILE-TLOAD",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "accept.asl"
+        },
+        "target": "ndf://pto-spec/PTO-TILE-MODEL-MEMORY-LOAD-STORE",
+        "type": "depends-on"
+      },
+      {
+        "attributes": {},
+        "source": "ndf://pto-spec/PTO-TILE-TLOAD",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "accept.asl"
+        },
+        "target": "ndf://pto-spec/PTO-SYNTHETIC-GENERATED-DECODERS",
+        "type": "depends-on"
+      },
+      {
+        "attributes": {},
+        "source": "ndf://pto-spec/PTO-INST-TILE-TLOAD",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "accept.asl"
+        },
+        "target": "ndf://pto-spec/PTO-TILE-TLOAD",
+        "type": "defined-in"
+      },
+      {
+        "attributes": {},
         "source": "ndf://pto-spec/PTO-TILE-CAPACITY",
         "source_span": {
           "column": 1,
@@ -19,8 +58,54 @@
     "nodes": [
       {
         "attributes": {
+          "pto_entity": "synthetic-unit"
+        },
+        "body": "",
+        "domain": "generated",
+        "id": "ndf://pto-spec/PTO-SYNTHETIC-GENERATED-DECODERS",
+        "kind": "source",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "generated:decoders"
+        },
+        "status": "active",
+        "title": "Generated decoder projection"
+      },
+      {
+        "attributes": {
+          "classification": "memory-and-data-movement/regular",
           "mnemonic": "TLOAD",
-          "semantic_facets": "architectural-state,completion,encoding,fault,instruction-semantics,legality,memory-ordering",
+          "pto_entity": "unit",
+          "surface": "tile"
+        },
+        "body": "",
+        "domain": "tile",
+        "id": "ndf://pto-spec/PTO-TILE-TLOAD",
+        "kind": "source",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "accept.asl"
+        },
+        "status": "active",
+        "title": "tile ASL unit PTO-TILE-TLOAD"
+      },
+      {
+        "attributes": {
+          "mnemonic": "TLOAD",
+          "pto_entity": "instruction",
+          "semantic_facets": "architectural-state,instruction-semantics",
           "semantic_handler": "TLOAD",
           "status": "reviewed-complete",
           "surface": "tile"
@@ -159,6 +244,105 @@
     ],
     "edges": [],
     "nodes": [],
+    "schema_version": "0.1"
+  },
+  "reject-unit.asl": {
+    "diagnostics": [
+      {
+        "code": "NDF-ASL-006",
+        "message": "invalid PTO ASL unit metadata: key must be a string at line 1 column 2",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "reject-unit.asl"
+        },
+        "related": [],
+        "repair": "Provide valid JSON with the required ASL unit fields.",
+        "severity": "error",
+        "subject": null
+      },
+      {
+        "code": "NDF-ASL-006",
+        "message": "invalid PTO ASL unit metadata: missing string id",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 2,
+          "path": "reject-unit.asl"
+        },
+        "related": [],
+        "repair": "Provide id, surface, non-empty classification, and depends_on with the documented types.",
+        "severity": "error",
+        "subject": null
+      },
+      {
+        "code": "NDF-ASL-006",
+        "message": "duplicate PTO ASL unit metadata: PTO-ARCH-DUPLICATE",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 4,
+          "path": "reject-unit.asl"
+        },
+        "related": [
+          {
+            "column": 1,
+            "end_column": null,
+            "end_line": null,
+            "line": 3,
+            "path": "reject-unit.asl"
+          }
+        ],
+        "repair": "Keep exactly one PTO-UNIT or PTO-INSTRUCTION record for each ASL unit ID.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-ARCH-DUPLICATE"
+      },
+      {
+        "code": "NDF-ASL-006",
+        "message": "invalid PTO ASL unit metadata: unsupported ASL unit dependency: generated:other",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 5,
+          "path": "reject-unit.asl"
+        },
+        "related": [],
+        "repair": "Provide id, surface, non-empty classification, and depends_on with the documented types.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-ARCH-UNSUPPORTED-DEPENDENCY"
+      }
+    ],
+    "edges": [],
+    "nodes": [
+      {
+        "attributes": {
+          "classification": "programming-model",
+          "pto_entity": "unit",
+          "surface": "arch"
+        },
+        "body": "",
+        "domain": "arch",
+        "id": "ndf://pto-spec/PTO-ARCH-DUPLICATE",
+        "kind": "source",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 3,
+          "path": "reject-unit.asl"
+        },
+        "status": "active",
+        "title": "arch ASL unit PTO-ARCH-DUPLICATE"
+      }
+    ],
     "schema_version": "0.1"
   }
 }

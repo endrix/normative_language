@@ -63,10 +63,32 @@ fn instruction_identity_and_clause_contracts_are_preserved() {
     let root = repository().join("tests/fixtures/pto-asl");
     let project = ProjectManifest::for_test("pto-spec", &root, ["PTO"], ["tile"]);
     let parsed = parse_pto_asl(&root.join("accept.asl"), &project).unwrap();
-    assert_eq!(parsed.nodes[1].kind, NodeKind::Requirement);
-    assert_eq!(parsed.nodes[1].refinement.as_deref(), Some("L1"));
-    assert_eq!(parsed.nodes[1].status, LifecycleStatus::Active);
-    assert_eq!(parsed.edges[0].edge_type, "references");
+    let unit = parsed
+        .nodes
+        .iter()
+        .find(|node| node.id.local_id() == "PTO-TILE-TLOAD")
+        .unwrap();
+    assert_eq!(unit.kind, NodeKind::Source);
+    assert_eq!(unit.attributes["pto_entity"], "unit");
+    assert!(parsed.edges.iter().any(|edge| {
+        edge.edge_type == "defined-in"
+            && edge.source.local_id() == "PTO-INST-TILE-TLOAD"
+            && edge.target.local_id() == "PTO-TILE-TLOAD"
+    }));
+    let clause = parsed
+        .nodes
+        .iter()
+        .find(|node| node.id.local_id() == "PTO-TILE-CAPACITY")
+        .unwrap();
+    assert_eq!(clause.kind, NodeKind::Requirement);
+    assert_eq!(clause.refinement.as_deref(), Some("L1"));
+    assert_eq!(clause.status, LifecycleStatus::Active);
+    assert!(
+        parsed
+            .edges
+            .iter()
+            .any(|edge| edge.edge_type == "references")
+    );
 }
 
 #[test]
@@ -75,7 +97,7 @@ fn instruction_identity_ignores_source_path() {
     let project = ProjectManifest::for_test("pto-spec", directory.path(), ["PTO"], ["tile"]);
     let text = concat!(
         "// PTO-INSTRUCTION: ",
-        r#"{"surface":"tile","mnemonic":"TLOAD","catalog_records":[{"semantic_handler":"TLOAD","contract_status":"reviewed-complete"}]}"#,
+        r#"{"id":"PTO-TILE-TLOAD","surface":"tile","classification":["memory-and-data-movement","regular"],"depends_on":[],"mnemonic":"TLOAD","catalog_records":[{"semantic_handler":"TLOAD","contract_status":"reviewed-complete"}]}"#,
         "\n",
     );
 
@@ -94,7 +116,11 @@ fn instruction_facets_are_indexed() {
     let root = repository().join("tests/fixtures/pto-asl");
     let project = ProjectManifest::for_test("pto-spec", &root, ["PTO"], ["tile"]);
     let parsed = parse_pto_asl(&root.join("accept.asl"), &project).unwrap();
-    let instruction = &parsed.nodes[0];
+    let instruction = parsed
+        .nodes
+        .iter()
+        .find(|node| node.id.local_id() == "PTO-INST-TILE-TLOAD")
+        .unwrap();
 
     assert_eq!(instruction.attributes["surface"], "tile");
     assert_eq!(instruction.attributes["mnemonic"], "TLOAD");
@@ -102,7 +128,7 @@ fn instruction_facets_are_indexed() {
     assert_eq!(instruction.attributes["status"], "reviewed-complete");
     assert_eq!(
         instruction.attributes["semantic_facets"],
-        "architectural-state,completion,encoding,fault,instruction-semantics,legality,memory-ordering"
+        "architectural-state,instruction-semantics"
     );
 }
 
@@ -111,12 +137,12 @@ fn colliding_instruction_identities_report_asl_005() {
     let directory = tempfile::tempdir().unwrap();
     fs::write(
         directory.path().join("first.asl"),
-        "// PTO-INSTRUCTION: {\"surface\":\"tile\",\"mnemonic\":\"T.LOAD\"}\n",
+        "// PTO-INSTRUCTION: {\"id\":\"PTO-TILE-TLOAD-DOT\",\"surface\":\"tile\",\"classification\":[\"test\"],\"depends_on\":[],\"mnemonic\":\"T.LOAD\"}\n",
     )
     .unwrap();
     fs::write(
         directory.path().join("second.asl"),
-        "// PTO-INSTRUCTION: {\"surface\":\"tile\",\"mnemonic\":\"T-LOAD\"}\n",
+        "// PTO-INSTRUCTION: {\"id\":\"PTO-TILE-TLOAD-DASH\",\"surface\":\"tile\",\"classification\":[\"test\"],\"depends_on\":[],\"mnemonic\":\"T-LOAD\"}\n",
     )
     .unwrap();
     let mut project = ProjectManifest::for_test("pto-spec", directory.path(), ["PTO"], ["tile"]);
@@ -127,4 +153,62 @@ fn colliding_instruction_identities_report_asl_005() {
     assert_eq!(graph.diagnostics.len(), 1);
     assert_eq!(graph.diagnostics[0].code, "NDF-ASL-005");
     assert_eq!(graph.diagnostics[0].related.len(), 1);
+}
+
+#[test]
+fn invalid_and_duplicate_unit_metadata_report_asl_006() {
+    let root = repository().join("tests/fixtures/pto-asl");
+    let project = ProjectManifest::for_test("pto-spec", &root, ["PTO"], ["architecture"]);
+    let parsed = parse_pto_asl(&root.join("reject-unit.asl"), &project).unwrap();
+
+    assert_eq!(
+        parsed
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.as_str())
+            .collect::<Vec<_>>(),
+        vec!["NDF-ASL-006"; 4]
+    );
+    assert!(parsed.diagnostics.iter().all(|diagnostic| {
+        diagnostic
+            .repair
+            .as_deref()
+            .is_some_and(|repair| !repair.is_empty())
+    }));
+    assert!(parsed.diagnostics.iter().any(|diagnostic| {
+        diagnostic
+            .message
+            .contains("unsupported ASL unit dependency: generated:other")
+    }));
+}
+
+#[test]
+fn synthetic_decoder_identity_is_coalesced_per_project() {
+    let directory = tempfile::tempdir().unwrap();
+    for (file, id) in [
+        ("first.asl", "PTO-TILE-FIRST"),
+        ("second.asl", "PTO-TILE-SECOND"),
+    ] {
+        fs::write(
+            directory.path().join(file),
+            format!(
+                "// PTO-UNIT: {{\"id\":\"{id}\",\"surface\":\"tile\",\"classification\":[\"test\"],\"depends_on\":[\"generated:decoders\"]}}\n"
+            ),
+        )
+        .unwrap();
+    }
+    let mut project = ProjectManifest::for_test("pto-spec", directory.path(), ["PTO"], ["tile"]);
+    project.roots = vec!["*.asl".to_owned()];
+
+    let graph = parse_project(&project).unwrap();
+
+    assert!(graph.diagnostics.is_empty());
+    assert_eq!(
+        graph
+            .nodes
+            .iter()
+            .filter(|node| node.id.local_id() == "PTO-SYNTHETIC-GENERATED-DECODERS")
+            .count(),
+        1
+    );
 }

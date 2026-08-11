@@ -1,4 +1,4 @@
-// PTO-INSTRUCTION: {"assembly":["TLOAD <bundle operands>"],"catalog_records":[{"contract_status":"reviewed-complete","effect_contract":"TLOAD","fault_contract":"ExecuteTileInstruction","function":0,"legality_handler":"TileOperandsLegal_TLOAD","memory_ordering_contract":"PTO-TSO","restart_contract":"CompleteBundleAtWithAcceptedApplicabilityRules","selector":"0x078","semantic_handler":"TLOAD","state_effects":["operand:destination0:destination"]}],"mnemonic":"TLOAD","surface":"tile"}
+// PTO-INSTRUCTION: {"id":"PTO-TILE-TLOAD","surface":"tile","classification":["memory-and-data-movement","regular"],"depends_on":["PTO-TILE-MODEL-MEMORY-LOAD-STORE","generated:decoders"],"mnemonic":"TLOAD","catalog_records":[{"semantic_handler":"TLOAD","contract_status":"reviewed-complete","state_effects":["operand:destination0:destination"]}]}
 
 // NDF-BEGIN: PTO-TILE-CAPACITY
 // ndf: kind=contract level=L1 layer=tile status=accepted

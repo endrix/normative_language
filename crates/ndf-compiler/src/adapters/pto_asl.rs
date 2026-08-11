@@ -12,7 +12,10 @@ use crate::CompilerError;
 use crate::manifest::ProjectManifest;
 
 const METADATA_PREFIX: &str = "// ndf: ";
+const UNIT_PREFIX: &str = "// PTO-UNIT: ";
 const INSTRUCTION_PREFIX: &str = "// PTO-INSTRUCTION: ";
+const SYNTHETIC_DECODER_ALIAS: &str = "generated:decoders";
+const SYNTHETIC_DECODER_ID: &str = "PTO-SYNTHETIC-GENERATED-DECODERS";
 const LAYERS: &[&str] = &[
     "architecture",
     "scalar",
@@ -57,13 +60,95 @@ pub fn parse_pto_asl_text(
     let mut metadata_raw: Option<String> = None;
     let mut body_lines = Vec::new();
     let mut region_invalid = false;
+    let mut unit_sources = BTreeMap::new();
+    let mut synthetic_decoder_emitted = false;
 
     for (index, line) in text.lines().enumerate() {
         let line_number = (index + 1) as u32;
-        if active_id.is_none() && line.starts_with(INSTRUCTION_PREFIX) {
-            match instruction_node(line, &path, line_number, project)? {
-                Ok(node) => nodes.push(node),
-                Err(diagnostic) => diagnostics.push(diagnostic),
+        if active_id.is_none()
+            && (line.starts_with(UNIT_PREFIX) || line.starts_with(INSTRUCTION_PREFIX))
+        {
+            let is_instruction = line.starts_with(INSTRUCTION_PREFIX);
+            let prefix = if is_instruction {
+                INSTRUCTION_PREFIX
+            } else {
+                UNIT_PREFIX
+            };
+            let metadata = match json_object_metadata(line, prefix, &path, line_number) {
+                Ok(metadata) => metadata,
+                Err(diagnostic) => {
+                    diagnostics.push(*diagnostic);
+                    continue;
+                }
+            };
+            let instruction = if is_instruction {
+                match instruction_node(&metadata, &path, line_number, project)? {
+                    Ok(node) => Some(node),
+                    Err(diagnostic) => {
+                        diagnostics.push(diagnostic);
+                        continue;
+                    }
+                }
+            } else {
+                None
+            };
+            let unit = match unit_node(&metadata, &path, line_number, project)? {
+                Ok(node) => node,
+                Err(diagnostic) => {
+                    diagnostics.push(diagnostic);
+                    continue;
+                }
+            };
+            if let Some(existing_source) = unit_sources.get(&unit.id).cloned() {
+                diagnostics.push(Diagnostic {
+                    code: "NDF-ASL-006".to_owned(),
+                    severity: DiagnosticSeverity::Error,
+                    message: format!("duplicate PTO ASL unit metadata: {}", unit.id.local_id()),
+                    primary: unit.source,
+                    related: vec![existing_source],
+                    repair: Some(
+                        "Keep exactly one PTO-UNIT or PTO-INSTRUCTION record for each ASL unit ID."
+                            .to_owned(),
+                    ),
+                    subject: Some(unit.id),
+                });
+                continue;
+            }
+            unit_sources.insert(unit.id.clone(), unit.source.clone());
+
+            let unit_id = unit.id.clone();
+            let unit_source = unit.source.clone();
+            for dependency in
+                required_string_array(&metadata, "depends_on").expect("unit metadata was validated")
+            {
+                let dependency_id = unit_dependency_id(dependency, project)?;
+                edges.push(
+                    Edge::new(
+                        unit_id.clone(),
+                        dependency_id,
+                        "depends-on",
+                        Some(unit_source.clone()),
+                    )
+                    .expect("non-empty built-in edge type"),
+                );
+                if dependency == SYNTHETIC_DECODER_ALIAS && !synthetic_decoder_emitted {
+                    nodes.push(synthetic_decoder_node(project)?);
+                    synthetic_decoder_emitted = true;
+                }
+            }
+            nodes.push(unit);
+
+            if let Some(node) = instruction {
+                edges.push(
+                    Edge::new(
+                        node.id.clone(),
+                        unit_id,
+                        "defined-in",
+                        Some(node.source.clone()),
+                    )
+                    .expect("non-empty built-in edge type"),
+                );
+                nodes.push(node);
             }
             continue;
         }
@@ -239,36 +324,223 @@ pub fn parse_pto_asl_text(
     })
 }
 
-fn instruction_node(
+fn json_object_metadata(
     line: &str,
+    prefix: &str,
+    path: &str,
+    line_number: u32,
+) -> Result<Map<String, Value>, Box<Diagnostic>> {
+    let (code, label, repair) = if prefix == INSTRUCTION_PREFIX {
+        (
+            "NDF-ASL-004",
+            "PTO instruction",
+            "Provide valid PTO instruction JSON metadata.",
+        )
+    } else {
+        (
+            "NDF-ASL-006",
+            "PTO ASL unit",
+            "Provide valid JSON with the required ASL unit fields.",
+        )
+    };
+    match serde_json::from_str(&line[prefix.len()..]) {
+        Ok(Value::Object(metadata)) => Ok(metadata),
+        Ok(_) => Err(Box::new(diagnostic(
+            code,
+            format!("invalid {label} metadata: expected object"),
+            path,
+            line_number,
+            repair,
+            None,
+        ))),
+        Err(error) => Err(Box::new(diagnostic(
+            code,
+            format!("invalid {label} metadata: {error}"),
+            path,
+            line_number,
+            repair,
+            None,
+        ))),
+    }
+}
+
+fn unit_node(
+    metadata: &Map<String, Value>,
+    path: &str,
+    line: u32,
+    project: &ProjectManifest,
+) -> Result<Result<Node, Diagnostic>, CompilerError> {
+    let Some(id) = metadata.get("id").and_then(Value::as_str) else {
+        return Ok(Err(invalid_unit_metadata(
+            "missing string id",
+            path,
+            line,
+            None,
+        )));
+    };
+    let subject = node_id(project, id).ok();
+    if !valid_clause_id(id) {
+        return Ok(Err(invalid_unit_metadata(
+            "id must be a PTO-prefixed uppercase identity",
+            path,
+            line,
+            subject,
+        )));
+    }
+    let Some(surface) = metadata.get("surface").and_then(Value::as_str) else {
+        return Ok(Err(invalid_unit_metadata(
+            "missing string surface",
+            path,
+            line,
+            subject,
+        )));
+    };
+    if surface.is_empty() {
+        return Ok(Err(invalid_unit_metadata(
+            "surface must not be empty",
+            path,
+            line,
+            subject,
+        )));
+    }
+    let Some(classification) = required_string_array(metadata, "classification") else {
+        return Ok(Err(invalid_unit_metadata(
+            "classification must be a non-empty array of non-empty strings",
+            path,
+            line,
+            subject,
+        )));
+    };
+    if classification.is_empty() {
+        return Ok(Err(invalid_unit_metadata(
+            "classification must be a non-empty array of non-empty strings",
+            path,
+            line,
+            subject,
+        )));
+    }
+    if let Some(invalid) = classification.iter().find(|value| {
+        !value.chars().all(|character| {
+            character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
+        })
+    }) {
+        return Ok(Err(invalid_unit_metadata(
+            format!("invalid classification segment: {invalid}"),
+            path,
+            line,
+            subject,
+        )));
+    }
+    let Some(dependencies) = required_string_array(metadata, "depends_on") else {
+        return Ok(Err(invalid_unit_metadata(
+            "depends_on must be an array of non-empty strings",
+            path,
+            line,
+            subject,
+        )));
+    };
+    if let Some(unsupported) = dependencies
+        .iter()
+        .find(|value| !valid_clause_id(value) && **value != SYNTHETIC_DECODER_ALIAS)
+    {
+        return Ok(Err(invalid_unit_metadata(
+            format!("unsupported ASL unit dependency: {unsupported}"),
+            path,
+            line,
+            subject,
+        )));
+    }
+
+    let mut attributes = BTreeMap::from([
+        ("pto_entity".to_owned(), "unit".to_owned()),
+        ("surface".to_owned(), surface.to_owned()),
+        ("classification".to_owned(), classification.join("/")),
+    ]);
+    if let Some(mnemonic) = metadata.get("mnemonic").and_then(Value::as_str) {
+        if mnemonic.is_empty() {
+            return Ok(Err(invalid_unit_metadata(
+                "mnemonic must not be empty when present",
+                path,
+                line,
+                subject,
+            )));
+        }
+        attributes.insert("mnemonic".to_owned(), mnemonic.to_owned());
+    }
+
+    Ok(Ok(Node {
+        id: node_id(project, id)?,
+        kind: NodeKind::Source,
+        title: format!("{surface} ASL unit {id}"),
+        source: SourceSpan::new(path, line).expect("positive ASL line"),
+        modality: None,
+        refinement: None,
+        domain: Some(surface.to_owned()),
+        status: LifecycleStatus::Active,
+        owner: Some("pto-spec".to_owned()),
+        body: String::new(),
+        attributes,
+    }))
+}
+
+fn invalid_unit_metadata(
+    detail: impl Into<String>,
+    path: &str,
+    line: u32,
+    subject: Option<NodeId>,
+) -> Diagnostic {
+    diagnostic(
+        "NDF-ASL-006",
+        format!("invalid PTO ASL unit metadata: {}", detail.into()),
+        path,
+        line,
+        "Provide id, surface, non-empty classification, and depends_on with the documented types.",
+        subject,
+    )
+}
+
+fn required_string_array<'a>(metadata: &'a Map<String, Value>, name: &str) -> Option<Vec<&'a str>> {
+    let values = metadata.get(name)?.as_array()?;
+    values
+        .iter()
+        .map(|value| value.as_str().filter(|value| !value.is_empty()))
+        .collect()
+}
+
+fn unit_dependency_id(value: &str, project: &ProjectManifest) -> Result<NodeId, CompilerError> {
+    if value == SYNTHETIC_DECODER_ALIAS {
+        node_id(project, SYNTHETIC_DECODER_ID)
+    } else if value.starts_with("PTO-") {
+        node_id(project, value)
+    } else {
+        Err(CompilerError::Contract(format!(
+            "unsupported PTO ASL unit dependency: {value}"
+        )))
+    }
+}
+
+fn synthetic_decoder_node(project: &ProjectManifest) -> Result<Node, CompilerError> {
+    Ok(Node {
+        id: node_id(project, SYNTHETIC_DECODER_ID)?,
+        kind: NodeKind::Source,
+        title: "Generated decoder projection".to_owned(),
+        source: SourceSpan::new(SYNTHETIC_DECODER_ALIAS, 1).expect("positive virtual line"),
+        modality: None,
+        refinement: None,
+        domain: Some("generated".to_owned()),
+        status: LifecycleStatus::Active,
+        owner: Some("pto-spec".to_owned()),
+        body: String::new(),
+        attributes: BTreeMap::from([("pto_entity".to_owned(), "synthetic-unit".to_owned())]),
+    })
+}
+
+fn instruction_node(
+    metadata: &Map<String, Value>,
     path: &str,
     line_number: u32,
     project: &ProjectManifest,
 ) -> Result<Result<Node, Diagnostic>, CompilerError> {
-    let parsed: Result<Value, _> = serde_json::from_str(&line[INSTRUCTION_PREFIX.len()..]);
-    let metadata = match parsed {
-        Ok(Value::Object(metadata)) => metadata,
-        Ok(_) => {
-            return Ok(Err(diagnostic(
-                "NDF-ASL-004",
-                "invalid PTO instruction metadata: expected object",
-                path,
-                line_number,
-                "Provide JSON string fields surface and mnemonic.",
-                None,
-            )));
-        }
-        Err(error) => {
-            return Ok(Err(diagnostic(
-                "NDF-ASL-004",
-                format!("invalid PTO instruction metadata: {error}"),
-                path,
-                line_number,
-                "Provide JSON string fields surface and mnemonic.",
-                None,
-            )));
-        }
-    };
     let (Some(surface), Some(mnemonic)) = (
         metadata.get("surface").and_then(Value::as_str),
         metadata.get("mnemonic").and_then(Value::as_str),
@@ -293,7 +565,7 @@ fn instruction_node(
         status: LifecycleStatus::Active,
         owner: Some("pto-spec".to_owned()),
         body: String::new(),
-        attributes: instruction_attributes(&metadata, surface, mnemonic),
+        attributes: instruction_attributes(metadata, surface, mnemonic),
     }))
 }
 
@@ -337,6 +609,7 @@ fn instruction_attributes(
     }
 
     BTreeMap::from([
+        ("pto_entity".to_owned(), "instruction".to_owned()),
         ("surface".to_owned(), surface.to_owned()),
         ("mnemonic".to_owned(), mnemonic.to_owned()),
         (

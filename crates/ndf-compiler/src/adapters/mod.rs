@@ -101,6 +101,7 @@ pub fn parse_project(manifest: &ProjectManifest) -> Result<Graph, CompilerError>
     let mut graph = GraphBuilder::default();
     let mut instruction_identities: BTreeMap<NodeId, (String, String, SourceSpan)> =
         BTreeMap::new();
+    let mut synthetic_decoder_seen = false;
     for path in paths {
         let adapter = adapter_for(&path).ok_or_else(|| {
             CompilerError::Contract(format!(
@@ -110,6 +111,14 @@ pub fn parse_project(manifest: &ProjectManifest) -> Result<Graph, CompilerError>
         })?;
         let parsed = adapter.parse(&path, manifest)?;
         for node in parsed.nodes {
+            if node.id.local_id() == "PTO-SYNTHETIC-GENERATED-DECODERS"
+                && node.attributes.get("pto_entity").map(String::as_str) == Some("synthetic-unit")
+            {
+                if synthetic_decoder_seen {
+                    continue;
+                }
+                synthetic_decoder_seen = true;
+            }
             if node.id.local_id().starts_with("PTO-INST-")
                 && let (Some(surface), Some(mnemonic)) = (
                     node.attributes.get("surface"),
