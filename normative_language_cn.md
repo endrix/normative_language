@@ -501,6 +501,26 @@ lock 校验已检出的依赖，禁止获取未锁定分支。脏的本地覆盖
 kind/refinement，把 ASL `layer` 映射为 domain，把 ASL 生命周期映射为
 规范 status。adapter 映射不得改变 PTO-SPEC ASL 的权威性。
 
+PTO adapter 在不改变 ASL 语义的前提下暴露四类分型身份：ASL unit 是
+`source` 节点，架构状态族是 `architecture` 节点，指令是 `definition`
+节点，NDF region 保留其映射后的 contract kind。指令通过 `defined-in`
+连接到 unit；状态通过 `defined-in` 连接到同文件 unit，并由反向
+`owns-state` 边表示所有关系。消费者必须指向指令、状态或 contract
+身份，不能把 unit provenance 节点作为符合性目标。
+
+PTO 状态记录严格采用以下创作形态：
+
+```asl
+// PTO-STATE: {"id":"PTO-STATE-ARCH-GPR","classification":["scalar","gpr"],"scope":"pe","owner":"PTO-ARCH-PROGRAMMING-MODEL-EXECUTION-CONTEXT","members":["_PEGPRs"],"depends_on":[]}
+```
+
+`scope` 只能是 `pe`、`bundle`、`core`、`memory-agent`、`acr` 或
+`system`。member 必须指向同文件的 ASL `var` 声明，并且在一个 owner
+中只能属于一个状态族。`generated:decoders` 是唯一虚拟 unit 依赖，映射到
+`PTO-SYNTHETIC-GENERATED-DECODERS`。这些记录只是索引元数据；可执行 ASL
+声明与 transition 仍是唯一的 PTO 架构权威。完整创作及诊断合同见
+[PTO ASL Adapter](docs/adapters/pto-asl.md)。
+
 每个面向机器的命令都输出 JSON schema 0.1，含 `schema_version`、
 `command`、`ok`、`data`、`diagnostics`。Agent 在依赖图的工作前必须构建
 或刷新索引，提交前必须运行 `check`，移动或规范变更必须检查语义 `diff`，
@@ -522,9 +542,11 @@ kind/refinement，把 ASL `layer` 映射为 domain，把 ASL 生命周期映射�
 | `ndf check` | Lint：悬空引用、重复 ID、关键词纪律、层间一致性标记、术语漂移；在 CI 中运行 |
 | `ndf show ID` | 显示一个规范索引节点 |
 | `ndf trace ID` | 打印某条款的精化/依赖子树 |
+| `ndf query` | 按规范字段与 `attributes.<key>` 值过滤索引节点 |
 | `ndf report coverage` | L1→验证覆盖率、TBD 与开放项普查 |
 | `ndf report dependencies` | 从 `ndf.lock` 解析并报告精确兼容性元组 |
 | `ndf diff BEFORE AFTER` | 物化基线之间的语义变更日志 |
+| `ndf impact pto-release` | 为符合性消费者分类锁定的 PTO 变更 |
 | `ndf export` | 导出确定性 NDF JSON，供评审、RAG 和仪表盘使用 |
 | `ndf id allocate PREFIX` | 分配下一个本地 ID；合并时的重复检查仍是最终权威 |
 | `ndf fix` | 应用或检查仅格式与生成导航相关的安全修复 |

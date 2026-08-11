@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -6,7 +7,8 @@ use ndf_compiler::manifest::ProjectManifest;
 use ndf_compiler::markdown::parse_markdown;
 use ndf_compiler::query::{query_nodes, trace};
 use ndf_compiler::report::{CoveragePolicy, coverage};
-use ndf_core::model::Graph;
+use ndf_core::identity::NodeId;
+use ndf_core::model::{Graph, LifecycleStatus, Node, NodeKind, SourceSpan};
 use serde_json::{Value, json};
 
 fn repository() -> PathBuf {
@@ -90,4 +92,52 @@ fn query_rejects_invalid_clauses_and_trace_reports_cycles() {
     let cycle = trace(&index, "PIPE-ISSUE-010", &["refines"]).unwrap();
     assert_eq!(cycle.cycles.len(), 1);
     assert_eq!(cycle.cycles[0].target, "ndf://fixture/PIPE-ISSUE-010");
+}
+
+#[test]
+fn query_filters_decoded_node_attributes() {
+    let directory = tempfile::tempdir().unwrap();
+    let output = directory.path().join("state.sqlite");
+    let nodes = ["state", "unit"]
+        .into_iter()
+        .enumerate()
+        .map(|(index, entity)| Node {
+            id: NodeId::new("pto-spec", format!("PTO-QUERY-{entity}")).unwrap(),
+            kind: if entity == "state" {
+                NodeKind::Architecture
+            } else {
+                NodeKind::Source
+            },
+            title: entity.to_owned(),
+            source: SourceSpan::new("query.asl", (index + 1) as u32).unwrap(),
+            modality: None,
+            refinement: None,
+            domain: None,
+            status: LifecycleStatus::Active,
+            owner: Some("pto-spec".to_owned()),
+            body: String::new(),
+            attributes: BTreeMap::from([("pto_entity".to_owned(), entity.to_owned())]),
+        })
+        .collect();
+    build_index(
+        &Graph {
+            nodes,
+            ..Graph::default()
+        },
+        &output,
+        &BuildProvenance {
+            project_commits: vec![("pto-spec".to_owned(), "1".repeat(40))],
+            format_version: "0.2".to_owned(),
+            ir_version: "0.1".to_owned(),
+            tool_version: "0.1.0".to_owned(),
+            normative_roots: Vec::new(),
+        },
+    )
+    .unwrap();
+    let index = NdfIndex::open(&output).unwrap();
+
+    let result = query_nodes(&index, "kind=architecture and attributes.pto_entity=state").unwrap();
+
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].attributes["pto_entity"], "state");
 }

@@ -12,7 +12,7 @@ use ndf_compiler::id_allocator::allocate_id;
 use ndf_compiler::index::{BuildProvenance, NdfIndex, build_index};
 use ndf_compiler::manifest::{ProjectLock, ProjectManifest};
 use ndf_compiler::pto_impact::pto_release_impact;
-use ndf_compiler::query::trace;
+use ndf_compiler::query::{query_nodes, trace};
 use ndf_compiler::report::{CoveragePolicy, coverage};
 use ndf_compiler::rules::{ValidationPolicy, validate_project_graph};
 use ndf_core::identity::NodeId;
@@ -83,6 +83,15 @@ pub fn run(arguments: Arguments) -> Result<Envelope, CompilerError> {
                 edges.iter().map(String::as_str).collect()
             };
             Envelope::success("trace", trace(&index, &uri, &edge_types)?, Vec::new())
+                .map_err(Into::into)
+        }
+        Some(Command::Query {
+            index,
+            expression,
+            format: _,
+        }) => {
+            let index = NdfIndex::open(&index)?;
+            Envelope::success("query", query_nodes(&index, &expression)?, Vec::new())
                 .map_err(Into::into)
         }
         Some(Command::Report { command }) => match command {

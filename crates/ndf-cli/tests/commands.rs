@@ -295,6 +295,46 @@ fn graph_commands_emit_versioned_machine_envelopes() {
 }
 
 #[test]
+fn query_command_filters_pto_state_attributes() {
+    let directory = tempfile::tempdir().unwrap();
+    let output = directory.path().join("state.sqlite");
+    let mut state = impact_node("pto-spec", "PTO-STATE-TILE-SHARED", None);
+    state
+        .attributes
+        .insert("pto_entity".to_owned(), "state".to_owned());
+    build_index(
+        &Graph {
+            nodes: vec![state],
+            ..Graph::default()
+        },
+        &output,
+        &impact_provenance("pto-spec"),
+    )
+    .unwrap();
+    let index = output.to_string_lossy();
+
+    let (status, payload) = ndf(
+        directory.path(),
+        &[
+            "query",
+            "--index",
+            &index,
+            "--expression",
+            "kind=architecture and attributes.pto_entity=state",
+            "--format",
+            "json",
+        ],
+    );
+
+    assert_envelope(status, &payload, "query");
+    assert_eq!(payload["data"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        payload["data"][0]["id"],
+        "ndf://pto-spec/PTO-STATE-TILE-SHARED"
+    );
+}
+
+#[test]
 fn dependency_report_reads_an_exact_local_checkout() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();

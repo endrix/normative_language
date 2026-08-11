@@ -4,12 +4,77 @@
     "edges": [
       {
         "attributes": {},
+        "source": "ndf://pto-spec/PTO-TILE-TLOAD",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "accept.asl"
+        },
+        "target": "ndf://pto-spec/PTO-TILE-MODEL-MEMORY-LOAD-STORE",
+        "type": "depends-on"
+      },
+      {
+        "attributes": {},
+        "source": "ndf://pto-spec/PTO-TILE-TLOAD",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "accept.asl"
+        },
+        "target": "ndf://pto-spec/PTO-SYNTHETIC-GENERATED-DECODERS",
+        "type": "depends-on"
+      },
+      {
+        "attributes": {},
+        "source": "ndf://pto-spec/PTO-INST-TILE-TLOAD",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "accept.asl"
+        },
+        "target": "ndf://pto-spec/PTO-TILE-TLOAD",
+        "type": "defined-in"
+      },
+      {
+        "attributes": {},
+        "source": "ndf://pto-spec/PTO-STATE-TILE-LOCAL",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 2,
+          "path": "accept.asl"
+        },
+        "target": "ndf://pto-spec/PTO-TILE-TLOAD",
+        "type": "defined-in"
+      },
+      {
+        "attributes": {},
+        "source": "ndf://pto-spec/PTO-TILE-TLOAD",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 2,
+          "path": "accept.asl"
+        },
+        "target": "ndf://pto-spec/PTO-STATE-TILE-LOCAL",
+        "type": "owns-state"
+      },
+      {
+        "attributes": {},
         "source": "ndf://pto-spec/PTO-TILE-CAPACITY",
         "source_span": {
           "column": 1,
           "end_column": null,
           "end_line": null,
-          "line": 3,
+          "line": 6,
           "path": "accept.asl"
         },
         "target": "ndf://pto-spec/PTO-INST-TILE-TLOAD",
@@ -19,8 +84,54 @@
     "nodes": [
       {
         "attributes": {
+          "pto_entity": "synthetic-unit"
+        },
+        "body": "",
+        "domain": "generated",
+        "id": "ndf://pto-spec/PTO-SYNTHETIC-GENERATED-DECODERS",
+        "kind": "source",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "generated:decoders"
+        },
+        "status": "active",
+        "title": "Generated decoder projection"
+      },
+      {
+        "attributes": {
+          "classification": "memory-and-data-movement/regular",
           "mnemonic": "TLOAD",
-          "semantic_facets": "architectural-state,completion,encoding,fault,instruction-semantics,legality,memory-ordering",
+          "pto_entity": "unit",
+          "surface": "tile"
+        },
+        "body": "",
+        "domain": "tile",
+        "id": "ndf://pto-spec/PTO-TILE-TLOAD",
+        "kind": "source",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "accept.asl"
+        },
+        "status": "active",
+        "title": "tile ASL unit PTO-TILE-TLOAD"
+      },
+      {
+        "attributes": {
+          "mnemonic": "TLOAD",
+          "pto_entity": "instruction",
+          "semantic_facets": "architectural-state,instruction-semantics",
           "semantic_handler": "TLOAD",
           "status": "reviewed-complete",
           "surface": "tile"
@@ -44,6 +155,30 @@
       },
       {
         "attributes": {
+          "classification": "tile/local",
+          "members": "_Tiles,_TileAllocationMasks",
+          "pto_entity": "state",
+          "scope": "core"
+        },
+        "body": "",
+        "domain": "state",
+        "id": "ndf://pto-spec/PTO-STATE-TILE-LOCAL",
+        "kind": "architecture",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 2,
+          "path": "accept.asl"
+        },
+        "status": "active",
+        "title": "State Tile Local"
+      },
+      {
+        "attributes": {
           "pto_kind": "contract"
         },
         "body": "Tile capacity is defined per selected PE; see [[PTO-INST-TILE-TLOAD]].",
@@ -57,7 +192,7 @@
           "column": 1,
           "end_column": null,
           "end_line": null,
-          "line": 3,
+          "line": 6,
           "path": "accept.asl"
         },
         "status": "active",
@@ -78,7 +213,7 @@
           "column": 1,
           "end_column": null,
           "end_line": null,
-          "line": 8,
+          "line": 11,
           "path": "accept.asl"
         },
         "status": "open",
@@ -159,6 +294,365 @@
     ],
     "edges": [],
     "nodes": [],
+    "schema_version": "0.1"
+  },
+  "reject-state.asl": {
+    "diagnostics": [
+      {
+        "code": "NDF-ASL-008",
+        "message": "invalid PTO state metadata: unsupported scope: thread",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 2,
+          "path": "reject-state.asl"
+        },
+        "related": [],
+        "repair": "Provide exactly id, classification, scope, owner, members, and depends_on with documented types.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-STATE-ARCH-BAD-SCOPE"
+      },
+      {
+        "code": "NDF-ASL-009",
+        "message": "invalid PTO state reference: state owner PTO-ARCH-OTHER does not match same-file unit PTO-ARCH-STATE-OWNER",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 3,
+          "path": "reject-state.asl"
+        },
+        "related": [],
+        "repair": "Use the same-file unit owner and declared ASL var members exactly once.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-STATE-ARCH-BAD-OWNER"
+      },
+      {
+        "code": "NDF-ASL-009",
+        "message": "invalid PTO state reference: state member is not declared by a same-file ASL var: _Missing",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 4,
+          "path": "reject-state.asl"
+        },
+        "related": [],
+        "repair": "Use the same-file unit owner and declared ASL var members exactly once.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-STATE-ARCH-BAD-MEMBER"
+      },
+      {
+        "code": "NDF-ASL-008",
+        "message": "invalid PTO state metadata: missing field: depends_on",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 5,
+          "path": "reject-state.asl"
+        },
+        "related": [],
+        "repair": "Provide exactly id, classification, scope, owner, members, and depends_on with documented types.",
+        "severity": "error",
+        "subject": null
+      },
+      {
+        "code": "NDF-ASL-008",
+        "message": "invalid PTO state metadata: unknown field: description",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 6,
+          "path": "reject-state.asl"
+        },
+        "related": [],
+        "repair": "Provide exactly id, classification, scope, owner, members, and depends_on with documented types.",
+        "severity": "error",
+        "subject": null
+      },
+      {
+        "code": "NDF-ASL-008",
+        "message": "invalid PTO state metadata: members must not contain duplicates",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 7,
+          "path": "reject-state.asl"
+        },
+        "related": [],
+        "repair": "Provide exactly id, classification, scope, owner, members, and depends_on with documented types.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-STATE-ARCH-DUPLICATE-MEMBER"
+      },
+      {
+        "code": "NDF-ASL-008",
+        "message": "duplicate PTO state metadata: PTO-STATE-ARCH-DUPLICATE-ID",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 9,
+          "path": "reject-state.asl"
+        },
+        "related": [
+          {
+            "column": 1,
+            "end_column": null,
+            "end_line": null,
+            "line": 8,
+            "path": "reject-state.asl"
+          }
+        ],
+        "repair": "Keep exactly one record for each PTO-STATE identity.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-STATE-ARCH-DUPLICATE-ID"
+      },
+      {
+        "code": "NDF-ASL-009",
+        "message": "invalid PTO state reference: state member is assigned to more than one family: _Known",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 11,
+          "path": "reject-state.asl"
+        },
+        "related": [],
+        "repair": "Use the same-file unit owner and declared ASL var members exactly once.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-STATE-ARCH-TWO"
+      }
+    ],
+    "edges": [
+      {
+        "attributes": {},
+        "source": "ndf://pto-spec/PTO-STATE-ARCH-DUPLICATE-ID",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 8,
+          "path": "reject-state.asl"
+        },
+        "target": "ndf://pto-spec/PTO-ARCH-STATE-OWNER",
+        "type": "defined-in"
+      },
+      {
+        "attributes": {},
+        "source": "ndf://pto-spec/PTO-ARCH-STATE-OWNER",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 8,
+          "path": "reject-state.asl"
+        },
+        "target": "ndf://pto-spec/PTO-STATE-ARCH-DUPLICATE-ID",
+        "type": "owns-state"
+      },
+      {
+        "attributes": {},
+        "source": "ndf://pto-spec/PTO-STATE-ARCH-ONE",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 10,
+          "path": "reject-state.asl"
+        },
+        "target": "ndf://pto-spec/PTO-ARCH-STATE-OWNER",
+        "type": "defined-in"
+      },
+      {
+        "attributes": {},
+        "source": "ndf://pto-spec/PTO-ARCH-STATE-OWNER",
+        "source_span": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 10,
+          "path": "reject-state.asl"
+        },
+        "target": "ndf://pto-spec/PTO-STATE-ARCH-ONE",
+        "type": "owns-state"
+      }
+    ],
+    "nodes": [
+      {
+        "attributes": {
+          "classification": "state/owner",
+          "pto_entity": "unit",
+          "surface": "arch"
+        },
+        "body": "",
+        "domain": "arch",
+        "id": "ndf://pto-spec/PTO-ARCH-STATE-OWNER",
+        "kind": "source",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "reject-state.asl"
+        },
+        "status": "active",
+        "title": "arch ASL unit PTO-ARCH-STATE-OWNER"
+      },
+      {
+        "attributes": {
+          "classification": "arch/identity",
+          "members": "_Other",
+          "pto_entity": "state",
+          "scope": "core"
+        },
+        "body": "",
+        "domain": "state",
+        "id": "ndf://pto-spec/PTO-STATE-ARCH-DUPLICATE-ID",
+        "kind": "architecture",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 8,
+          "path": "reject-state.asl"
+        },
+        "status": "active",
+        "title": "State Arch Duplicate Id"
+      },
+      {
+        "attributes": {
+          "classification": "arch/member",
+          "members": "_Known",
+          "pto_entity": "state",
+          "scope": "core"
+        },
+        "body": "",
+        "domain": "state",
+        "id": "ndf://pto-spec/PTO-STATE-ARCH-ONE",
+        "kind": "architecture",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 10,
+          "path": "reject-state.asl"
+        },
+        "status": "active",
+        "title": "State Arch One"
+      }
+    ],
+    "schema_version": "0.1"
+  },
+  "reject-unit.asl": {
+    "diagnostics": [
+      {
+        "code": "NDF-ASL-006",
+        "message": "invalid PTO ASL unit metadata: key must be a string at line 1 column 2",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 1,
+          "path": "reject-unit.asl"
+        },
+        "related": [],
+        "repair": "Provide valid JSON with the required ASL unit fields.",
+        "severity": "error",
+        "subject": null
+      },
+      {
+        "code": "NDF-ASL-006",
+        "message": "invalid PTO ASL unit metadata: missing string id",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 2,
+          "path": "reject-unit.asl"
+        },
+        "related": [],
+        "repair": "Provide id, surface, non-empty classification, and depends_on with the documented types.",
+        "severity": "error",
+        "subject": null
+      },
+      {
+        "code": "NDF-ASL-006",
+        "message": "duplicate PTO ASL unit metadata: PTO-ARCH-DUPLICATE",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 4,
+          "path": "reject-unit.asl"
+        },
+        "related": [
+          {
+            "column": 1,
+            "end_column": null,
+            "end_line": null,
+            "line": 3,
+            "path": "reject-unit.asl"
+          }
+        ],
+        "repair": "Keep exactly one PTO-UNIT or PTO-INSTRUCTION record for each ASL unit ID.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-ARCH-DUPLICATE"
+      },
+      {
+        "code": "NDF-ASL-006",
+        "message": "invalid PTO ASL unit metadata: unsupported ASL unit dependency: generated:other",
+        "primary": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 5,
+          "path": "reject-unit.asl"
+        },
+        "related": [],
+        "repair": "Provide id, surface, non-empty classification, and depends_on with the documented types.",
+        "severity": "error",
+        "subject": "ndf://pto-spec/PTO-ARCH-UNSUPPORTED-DEPENDENCY"
+      }
+    ],
+    "edges": [],
+    "nodes": [
+      {
+        "attributes": {
+          "classification": "programming-model",
+          "pto_entity": "unit",
+          "surface": "arch"
+        },
+        "body": "",
+        "domain": "arch",
+        "id": "ndf://pto-spec/PTO-ARCH-DUPLICATE",
+        "kind": "source",
+        "modality": null,
+        "owner": "pto-spec",
+        "refinement": null,
+        "source": {
+          "column": 1,
+          "end_column": null,
+          "end_line": null,
+          "line": 3,
+          "path": "reject-unit.asl"
+        },
+        "status": "active",
+        "title": "arch ASL unit PTO-ARCH-DUPLICATE"
+      }
+    ],
     "schema_version": "0.1"
   }
 }
