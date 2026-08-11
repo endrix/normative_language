@@ -33,11 +33,115 @@ fn assert_envelope(status: i32, payload: &Value, command: &str) {
     assert!(payload["diagnostics"].is_array());
 }
 
+fn git(path: &Path, arguments: &[&str]) -> String {
+    let output = Command::new("git")
+        .args(arguments)
+        .current_dir(path)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).unwrap().trim().to_owned()
+}
+
+fn initialize_pto_dependency(root: &Path) -> String {
+    let dependency = root.join("deps/pto-spec");
+    fs::create_dir_all(dependency.join("asl")).unwrap();
+    git(&dependency, &["init", "-q"]);
+    git(
+        &dependency,
+        &["config", "user.email", "ndf@example.invalid"],
+    );
+    git(&dependency, &["config", "user.name", "NDF Test"]);
+    fs::write(
+        dependency.join("ndf.yaml"),
+        "format_version: '0.2'\nproject: pto-spec\nroots: ['asl/**/*.asl']\nid_prefixes: [PTO]\ndomains: [architecture]\npolicies: {}\ndependencies: {}\n",
+    )
+    .unwrap();
+    fs::write(
+        dependency.join("asl/contracts.asl"),
+        r#"// NDF-BEGIN: PTO-CONTRACT-001
+// ndf: kind=contract level=L1 layer=architecture status=accepted
+// The released architecture contract is authoritative.
+// NDF-END: PTO-CONTRACT-001
+// NDF-BEGIN: PTO-INST-TILE-TLOAD
+// ndf: kind=contract level=L1 layer=tile status=accepted
+// TLOAD is an accepted tile instruction.
+// NDF-END: PTO-INST-TILE-TLOAD
+"#,
+    )
+    .unwrap();
+    git(&dependency, &["add", "ndf.yaml", "asl/contracts.asl"]);
+    git(&dependency, &["commit", "-qm", "PTO graph fixture"]);
+    git(&dependency, &["rev-parse", "HEAD"])
+}
+
+fn write_lock(root: &Path, revision: &str) {
+    fs::write(
+        root.join("ndf.lock"),
+        format!(
+            "format_version: '0.1'\ndependencies:\n  pto-spec:\n    uri: https://example.invalid/pto-spec.git\n    revision: {revision}\n    path: deps/pto-spec\n"
+        ),
+    )
+    .unwrap();
+}
+
+fn cross_project_fixture(root: &Path, target: &str) {
+    let revision = initialize_pto_dependency(root);
+
+    fs::create_dir_all(root.join("docs")).unwrap();
+    fs::write(
+        root.join("docs/consumer.md"),
+        format!(
+            r#"---
+doc_id: DOC-CONSUMER
+status: active
+authority: normative
+owner: architecture
+---
+
+# Consumer
+
+## External contract {{#REQ-001}}
+<!-- ndf: kind=requirement modality=must refinement=L1 status=active conforms-to=ndf://pto-spec/{target} -->
+
+The consumer MUST preserve the external contract.
+"#
+        ),
+    )
+    .unwrap();
+    fs::write(
+        root.join("ndf.yaml"),
+        "format_version: '0.2'\nproject: consumer\nroots: ['docs/**/*.md']\nid_prefixes: [DOC, REQ]\ndomains: []\npolicies: {}\ndependencies:\n  pto-spec:\n    path: deps/pto-spec\n    graph: true\n",
+    )
+    .unwrap();
+    write_lock(root, &revision);
+}
+
+fn graph_command_fixture(root: &Path) {
+    let revision = initialize_pto_dependency(root);
+    fs::create_dir_all(root.join("docs")).unwrap();
+    fs::copy(
+        repository().join("tests/fixtures/markdown/project/docs/pipeline.md"),
+        root.join("docs/pipeline.md"),
+    )
+    .unwrap();
+    fs::write(
+        root.join("ndf.yaml"),
+        "format_version: '0.2'\nproject: fixture\nroots: ['docs/**/*.md']\nid_prefixes: [DOC, PIPE]\ndomains: [core]\npolicies: {}\ndependencies:\n  pto-spec:\n    path: deps/pto-spec\n    graph: true\n",
+    )
+    .unwrap();
+    write_lock(root, &revision);
+}
+
 #[test]
 fn graph_commands_emit_versioned_machine_envelopes() {
     let directory = tempfile::tempdir().unwrap();
-    let fixture = repository().join("tests/fixtures/markdown/project");
-    let root = fixture.to_string_lossy();
+    graph_command_fixture(directory.path());
+    let root = directory.path().to_string_lossy();
     let commands: &[(&[&str], &str)] = &[
         (
             &[
@@ -176,4 +280,20 @@ fn dependency_report_reads_an_exact_local_checkout() {
 
     assert_envelope(status, &payload, "report dependencies");
     assert_eq!(payload["data"][0]["revision"], revision);
+}
+
+#[test]
+fn check_rejects_a_missing_cross_project_conformance_target() {
+    let directory = tempfile::tempdir().unwrap();
+    cross_project_fixture(directory.path(), "PTO-MISSING-001");
+    let root = directory.path().to_string_lossy();
+
+    let (status, payload) = ndf(
+        directory.path(),
+        &["check", "--root", &root, "--format", "json"],
+    );
+
+    assert_eq!(status, 1, "{payload}");
+    assert_eq!(payload["ok"], false);
+    assert_eq!(payload["diagnostics"][0]["code"], "NDF-XREF-002");
 }

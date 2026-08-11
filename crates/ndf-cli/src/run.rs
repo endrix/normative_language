@@ -4,7 +4,7 @@ use std::process::Command as ProcessCommand;
 
 use ndf_compiler::CompilerError;
 use ndf_compiler::adapters::parse_project;
-use ndf_compiler::dependencies::resolve_dependencies;
+use ndf_compiler::dependencies::{load_dependency_graphs, resolve_dependencies};
 use ndf_compiler::diff::semantic_diff;
 use ndf_compiler::export::export_graph;
 use ndf_compiler::fix::{FixMode, markdown_paths, safe_fix};
@@ -13,7 +13,7 @@ use ndf_compiler::index::{BuildProvenance, NdfIndex, build_index};
 use ndf_compiler::manifest::{ProjectLock, ProjectManifest};
 use ndf_compiler::query::trace;
 use ndf_compiler::report::{CoveragePolicy, coverage};
-use ndf_compiler::rules::{ValidationPolicy, validate_graph};
+use ndf_compiler::rules::{ValidationPolicy, validate_project_graph};
 use ndf_core::identity::NodeId;
 use ndf_core::model::{Diagnostic, DiagnosticSeverity, Graph};
 use ndf_core::version::{FORMAT_VERSION, IR_VERSION, TOOL_VERSION};
@@ -182,8 +182,10 @@ pub fn run(arguments: Arguments) -> Result<Envelope, CompilerError> {
 
 fn project_graph(root: &Path) -> Result<(ProjectManifest, Graph), CompilerError> {
     let manifest = ProjectManifest::load(&root.join("ndf.yaml"))?;
+    let lock = ProjectLock::load(&root.join("ndf.lock"))?;
+    let dependencies = load_dependency_graphs(&manifest, &lock, root)?;
     let parsed = parse_project(&manifest)?;
-    let diagnostics = validate_graph(&parsed, &ValidationPolicy::default());
+    let diagnostics = validate_project_graph(&parsed, &dependencies, &ValidationPolicy::default());
     Ok((
         manifest,
         Graph {
