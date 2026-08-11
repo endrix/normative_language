@@ -10,6 +10,7 @@ pub mod id_allocator;
 pub mod index;
 pub mod manifest;
 pub mod markdown;
+pub mod pto_impact;
 pub mod query;
 pub mod report;
 pub mod rules;

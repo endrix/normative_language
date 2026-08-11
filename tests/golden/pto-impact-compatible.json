@@ -1,0 +1,20 @@
+{
+  "schema_version": "1",
+  "compatibility": "compatible",
+  "conformance_targets": [
+    {"consumer_uri":"ndf://davincioo/DAV-ISA-TLOAD","target_uri":"ndf://pto-spec/PTO-INST-TILE-TLOAD"},
+    {"consumer_uri":"ndf://davincioo/DAV-ISA-TMOV","target_uri":"ndf://pto-spec/PTO-INST-TILE-TMOV"},
+    {"consumer_uri":"ndf://davincioo/DAV-ISA-TOLD","target_uri":"ndf://pto-spec/PTO-INST-TILE-TOLD"},
+    {"consumer_uri":"ndf://davincioo/DAV-ISA-TSTORE","target_uri":"ndf://pto-spec/PTO-INST-TILE-TSTORE"}
+  ],
+  "absence_watches": [
+    {"consumer_uri":"ndf://davincioo/DAV-WATCH-TWATCH","target_uri":"ndf://pto-spec/PTO-INST-TILE-TWATCH","expected":"absent","present":false}
+  ],
+  "changes": [
+    {"uri":"ndf://pto-spec/PTO-ARCH-UNRELATED","kind":"added","facets":[]}
+  ],
+  "affected_consumers": [],
+  "presence_changes": [],
+  "deterministic_actions": ["record compatible PTO release impact"],
+  "human_decisions": []
+}

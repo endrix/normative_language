@@ -1,0 +1,21 @@
+{
+  "nodes": [
+    {"id":"ndf://davincioo/DAV-ISA-TLOAD","source":"docs/isa/tload.md"},
+    {"id":"ndf://davincioo/DAV-ISA-TMOV","source":"docs/isa/tmov.md"},
+    {"id":"ndf://davincioo/DAV-ISA-TOLD","source":"docs/isa/told.md"},
+    {"id":"ndf://davincioo/DAV-ISA-TSTORE","source":"docs/isa/tstore.md"},
+    {"id":"ndf://davincioo/DAV-PIPE-TLOAD","source":"docs/pipeline/tload.md"},
+    {"id":"ndf://davincioo/DAV-TEST-TLOAD","source":"docs/tests/tload.md"},
+    {"id":"ndf://davincioo/DAV-UNRELATED","source":"docs/unrelated.md"},
+    {"id":"ndf://davincioo/DAV-WATCH-TWATCH","source":"docs/isa/watch.md","expected":"absent"}
+  ],
+  "edges": [
+    {"source":"ndf://davincioo/DAV-ISA-TLOAD","type":"conforms-to","target":"ndf://pto-spec/PTO-INST-TILE-TLOAD"},
+    {"source":"ndf://davincioo/DAV-ISA-TMOV","type":"conforms-to","target":"ndf://pto-spec/PTO-INST-TILE-TMOV"},
+    {"source":"ndf://davincioo/DAV-ISA-TOLD","type":"conforms-to","target":"ndf://pto-spec/PTO-INST-TILE-TOLD"},
+    {"source":"ndf://davincioo/DAV-ISA-TSTORE","type":"conforms-to","target":"ndf://pto-spec/PTO-INST-TILE-TSTORE"},
+    {"source":"ndf://davincioo/DAV-PIPE-TLOAD","type":"refines","target":"ndf://davincioo/DAV-ISA-TLOAD"},
+    {"source":"ndf://davincioo/DAV-TEST-TLOAD","type":"verifies","target":"ndf://davincioo/DAV-PIPE-TLOAD"},
+    {"source":"ndf://davincioo/DAV-WATCH-TWATCH","type":"tracks","target":"ndf://pto-spec/PTO-INST-TILE-TWATCH"}
+  ]
+}
