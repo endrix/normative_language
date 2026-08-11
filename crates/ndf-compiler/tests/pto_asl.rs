@@ -212,3 +212,62 @@ fn synthetic_decoder_identity_is_coalesced_per_project() {
         1
     );
 }
+
+#[test]
+fn state_metadata_emits_architecture_node_and_provenance_edges() {
+    let root = repository().join("tests/fixtures/pto-asl");
+    let project = ProjectManifest::for_test("pto-spec", &root, ["PTO"], ["tile"]);
+    let parsed = parse_pto_asl(&root.join("accept.asl"), &project).unwrap();
+    let state = parsed
+        .nodes
+        .iter()
+        .find(|node| node.id.local_id() == "PTO-STATE-TILE-LOCAL")
+        .unwrap();
+
+    assert_eq!(state.kind, NodeKind::Architecture);
+    assert_eq!(state.attributes["pto_entity"], "state");
+    assert_eq!(state.attributes["scope"], "core");
+    assert_eq!(state.attributes["members"], "_Tiles,_TileAllocationMasks");
+    assert!(parsed.edges.iter().any(|edge| {
+        edge.edge_type == "defined-in"
+            && edge.source.local_id() == "PTO-STATE-TILE-LOCAL"
+            && edge.target.local_id() == "PTO-TILE-TLOAD"
+    }));
+    assert!(parsed.edges.iter().any(|edge| {
+        edge.edge_type == "owns-state"
+            && edge.source.local_id() == "PTO-TILE-TLOAD"
+            && edge.target.local_id() == "PTO-STATE-TILE-LOCAL"
+    }));
+}
+
+#[test]
+fn invalid_state_metadata_and_references_fail_closed() {
+    let root = repository().join("tests/fixtures/pto-asl");
+    let project = ProjectManifest::for_test("pto-spec", &root, ["PTO"], ["state"]);
+    let parsed = parse_pto_asl(&root.join("reject-state.asl"), &project).unwrap();
+    let codes = parsed
+        .diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.code.as_str())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        codes,
+        vec![
+            "NDF-ASL-008",
+            "NDF-ASL-009",
+            "NDF-ASL-009",
+            "NDF-ASL-008",
+            "NDF-ASL-008",
+            "NDF-ASL-008",
+            "NDF-ASL-008",
+            "NDF-ASL-009",
+        ]
+    );
+    assert!(parsed.diagnostics.iter().all(|diagnostic| {
+        diagnostic
+            .repair
+            .as_deref()
+            .is_some_and(|repair| !repair.is_empty())
+    }));
+}

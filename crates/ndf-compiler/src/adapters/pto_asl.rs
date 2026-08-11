@@ -14,8 +14,10 @@ use crate::manifest::ProjectManifest;
 const METADATA_PREFIX: &str = "// ndf: ";
 const UNIT_PREFIX: &str = "// PTO-UNIT: ";
 const INSTRUCTION_PREFIX: &str = "// PTO-INSTRUCTION: ";
+const STATE_PREFIX: &str = "// PTO-STATE: ";
 const SYNTHETIC_DECODER_ALIAS: &str = "generated:decoders";
 const SYNTHETIC_DECODER_ID: &str = "PTO-SYNTHETIC-GENERATED-DECODERS";
+const STATE_SCOPES: &[&str] = &["pe", "bundle", "core", "memory-agent", "acr", "system"];
 const LAYERS: &[&str] = &[
     "architecture",
     "scalar",
@@ -62,9 +64,69 @@ pub fn parse_pto_asl_text(
     let mut region_invalid = false;
     let mut unit_sources = BTreeMap::new();
     let mut synthetic_decoder_emitted = false;
+    let mut file_unit_id = None;
+    let variables = declared_variables(text);
+    let mut state_sources = BTreeMap::new();
+    let mut state_members = BTreeSet::new();
 
     for (index, line) in text.lines().enumerate() {
         let line_number = (index + 1) as u32;
+        if active_id.is_none() && line.starts_with(STATE_PREFIX) {
+            let metadata = match json_object_metadata(line, STATE_PREFIX, &path, line_number) {
+                Ok(metadata) => metadata,
+                Err(diagnostic) => {
+                    diagnostics.push(*diagnostic);
+                    continue;
+                }
+            };
+            let Some(unit_id) = file_unit_id.as_deref() else {
+                diagnostics.push(invalid_state_reference(
+                    "state metadata must follow its same-file PTO unit record",
+                    &path,
+                    line_number,
+                    None,
+                ));
+                continue;
+            };
+            let (state, state_edges) =
+                match state_node(&metadata, &variables, unit_id, &path, line_number, project) {
+                    Ok(value) => value,
+                    Err(diagnostic) => {
+                        diagnostics.push(*diagnostic);
+                        continue;
+                    }
+                };
+            if let Some(existing_source) = state_sources.get(&state.id).cloned() {
+                diagnostics.push(Diagnostic {
+                    code: "NDF-ASL-008".to_owned(),
+                    severity: DiagnosticSeverity::Error,
+                    message: format!("duplicate PTO state metadata: {}", state.id.local_id()),
+                    primary: state.source,
+                    related: vec![existing_source],
+                    repair: Some("Keep exactly one record for each PTO-STATE identity.".to_owned()),
+                    subject: Some(state.id),
+                });
+                continue;
+            }
+            let members = state.attributes["members"].split(',').collect::<Vec<_>>();
+            if let Some(member) = members
+                .iter()
+                .find(|member| state_members.contains(**member))
+            {
+                diagnostics.push(invalid_state_reference(
+                    format!("state member is assigned to more than one family: {member}"),
+                    &path,
+                    line_number,
+                    Some(state.id),
+                ));
+                continue;
+            }
+            state_sources.insert(state.id.clone(), state.source.clone());
+            state_members.extend(members.into_iter().map(str::to_owned));
+            nodes.push(state);
+            edges.extend(state_edges);
+            continue;
+        }
         if active_id.is_none()
             && (line.starts_with(UNIT_PREFIX) || line.starts_with(INSTRUCTION_PREFIX))
         {
@@ -115,6 +177,7 @@ pub fn parse_pto_asl_text(
                 continue;
             }
             unit_sources.insert(unit.id.clone(), unit.source.clone());
+            file_unit_id = Some(unit.id.local_id().to_owned());
 
             let unit_id = unit.id.clone();
             let unit_source = unit.source.clone();
@@ -336,6 +399,12 @@ fn json_object_metadata(
             "PTO instruction",
             "Provide valid PTO instruction JSON metadata.",
         )
+    } else if prefix == STATE_PREFIX {
+        (
+            "NDF-ASL-008",
+            "PTO state",
+            "Provide valid JSON with the required PTO state fields.",
+        )
     } else {
         (
             "NDF-ASL-006",
@@ -533,6 +602,295 @@ fn synthetic_decoder_node(project: &ProjectManifest) -> Result<Node, CompilerErr
         body: String::new(),
         attributes: BTreeMap::from([("pto_entity".to_owned(), "synthetic-unit".to_owned())]),
     })
+}
+
+fn state_node(
+    metadata: &Map<String, Value>,
+    declared_variables: &BTreeSet<String>,
+    unit_id: &str,
+    path: &str,
+    line: u32,
+    project: &ProjectManifest,
+) -> Result<(Node, Vec<Edge>), Box<Diagnostic>> {
+    const FIELDS: &[&str] = &[
+        "id",
+        "classification",
+        "scope",
+        "owner",
+        "members",
+        "depends_on",
+    ];
+    if let Some(field) = metadata
+        .keys()
+        .find(|field| !FIELDS.contains(&field.as_str()))
+    {
+        return Err(Box::new(invalid_state_metadata(
+            format!("unknown field: {field}"),
+            path,
+            line,
+            None,
+        )));
+    }
+    if let Some(field) = FIELDS.iter().find(|field| !metadata.contains_key(**field)) {
+        return Err(Box::new(invalid_state_metadata(
+            format!("missing field: {field}"),
+            path,
+            line,
+            None,
+        )));
+    }
+
+    let Some(id) = metadata.get("id").and_then(Value::as_str) else {
+        return Err(Box::new(invalid_state_metadata(
+            "id must be a string",
+            path,
+            line,
+            None,
+        )));
+    };
+    let subject = node_id(project, id).ok();
+    if !id.starts_with("PTO-STATE-") || !valid_clause_id(id) {
+        return Err(Box::new(invalid_state_metadata(
+            "id must be a PTO-STATE-prefixed uppercase identity",
+            path,
+            line,
+            subject,
+        )));
+    }
+    let Some(classification) = required_string_array(metadata, "classification") else {
+        return Err(Box::new(invalid_state_metadata(
+            "classification must be an array of non-empty strings",
+            path,
+            line,
+            subject,
+        )));
+    };
+    if classification.is_empty()
+        || classification.iter().any(|value| {
+            !value.chars().all(|character| {
+                character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
+            })
+        })
+    {
+        return Err(Box::new(invalid_state_metadata(
+            "classification must contain lowercase segments",
+            path,
+            line,
+            subject,
+        )));
+    }
+    let Some(scope) = metadata.get("scope").and_then(Value::as_str) else {
+        return Err(Box::new(invalid_state_metadata(
+            "scope must be a string",
+            path,
+            line,
+            subject,
+        )));
+    };
+    if !STATE_SCOPES.contains(&scope) {
+        return Err(Box::new(invalid_state_metadata(
+            format!("unsupported scope: {scope}"),
+            path,
+            line,
+            subject,
+        )));
+    }
+    let Some(owner) = metadata.get("owner").and_then(Value::as_str) else {
+        return Err(Box::new(invalid_state_metadata(
+            "owner must be a string",
+            path,
+            line,
+            subject,
+        )));
+    };
+    if owner != unit_id {
+        return Err(Box::new(invalid_state_reference(
+            format!("state owner {owner} does not match same-file unit {unit_id}"),
+            path,
+            line,
+            subject,
+        )));
+    }
+    let Some(members) = required_string_array(metadata, "members") else {
+        return Err(Box::new(invalid_state_metadata(
+            "members must be an array of non-empty strings",
+            path,
+            line,
+            subject,
+        )));
+    };
+    if members.is_empty() {
+        return Err(Box::new(invalid_state_metadata(
+            "members must not be empty",
+            path,
+            line,
+            subject,
+        )));
+    }
+    let unique_members = members.iter().copied().collect::<BTreeSet<_>>();
+    if unique_members.len() != members.len() {
+        return Err(Box::new(invalid_state_metadata(
+            "members must not contain duplicates",
+            path,
+            line,
+            subject,
+        )));
+    }
+    if let Some(member) = members
+        .iter()
+        .find(|member| !declared_variables.contains(**member))
+    {
+        return Err(Box::new(invalid_state_reference(
+            format!("state member is not declared by a same-file ASL var: {member}"),
+            path,
+            line,
+            subject,
+        )));
+    }
+    let Some(dependencies) = required_string_array(metadata, "depends_on") else {
+        return Err(Box::new(invalid_state_metadata(
+            "depends_on must be an array of non-empty strings",
+            path,
+            line,
+            subject,
+        )));
+    };
+    if let Some(dependency) = dependencies
+        .iter()
+        .find(|dependency| !dependency.starts_with("PTO-STATE-") || !valid_clause_id(dependency))
+    {
+        return Err(Box::new(invalid_state_metadata(
+            format!("invalid state dependency: {dependency}"),
+            path,
+            line,
+            subject,
+        )));
+    }
+
+    let state_id = node_id(project, id).map_err(|error| {
+        Box::new(invalid_state_metadata(
+            error.to_string(),
+            path,
+            line,
+            subject.clone(),
+        ))
+    })?;
+    let owner_id = node_id(project, owner).map_err(|error| {
+        Box::new(invalid_state_reference(
+            error.to_string(),
+            path,
+            line,
+            subject.clone(),
+        ))
+    })?;
+    let source = SourceSpan::new(path, line).expect("positive ASL line");
+    let mut edges = vec![
+        Edge::new(
+            state_id.clone(),
+            owner_id.clone(),
+            "defined-in",
+            Some(source.clone()),
+        )
+        .expect("non-empty built-in edge type"),
+        Edge::new(
+            owner_id,
+            state_id.clone(),
+            "owns-state",
+            Some(source.clone()),
+        )
+        .expect("non-empty built-in edge type"),
+    ];
+    for dependency in dependencies {
+        edges.push(
+            Edge::new(
+                state_id.clone(),
+                node_id(project, dependency).map_err(|error| {
+                    Box::new(invalid_state_metadata(
+                        error.to_string(),
+                        path,
+                        line,
+                        subject.clone(),
+                    ))
+                })?,
+                "depends-on",
+                Some(source.clone()),
+            )
+            .expect("non-empty built-in edge type"),
+        );
+    }
+
+    Ok((
+        Node {
+            id: state_id,
+            kind: NodeKind::Architecture,
+            title: clause_title(id),
+            source,
+            modality: None,
+            refinement: None,
+            domain: Some("state".to_owned()),
+            status: LifecycleStatus::Active,
+            owner: Some("pto-spec".to_owned()),
+            body: String::new(),
+            attributes: BTreeMap::from([
+                ("pto_entity".to_owned(), "state".to_owned()),
+                ("classification".to_owned(), classification.join("/")),
+                ("scope".to_owned(), scope.to_owned()),
+                ("members".to_owned(), members.join(",")),
+            ]),
+        },
+        edges,
+    ))
+}
+
+fn invalid_state_metadata(
+    detail: impl Into<String>,
+    path: &str,
+    line: u32,
+    subject: Option<NodeId>,
+) -> Diagnostic {
+    diagnostic(
+        "NDF-ASL-008",
+        format!("invalid PTO state metadata: {}", detail.into()),
+        path,
+        line,
+        "Provide exactly id, classification, scope, owner, members, and depends_on with documented types.",
+        subject,
+    )
+}
+
+fn invalid_state_reference(
+    detail: impl Into<String>,
+    path: &str,
+    line: u32,
+    subject: Option<NodeId>,
+) -> Diagnostic {
+    diagnostic(
+        "NDF-ASL-009",
+        format!("invalid PTO state reference: {}", detail.into()),
+        path,
+        line,
+        "Use the same-file unit owner and declared ASL var members exactly once.",
+        subject,
+    )
+}
+
+fn declared_variables(text: &str) -> BTreeSet<String> {
+    text.lines()
+        .filter_map(|line| {
+            let declaration = line.trim_start().strip_prefix("var ")?;
+            let (name, _) = declaration.split_once(':')?;
+            let name = name.trim();
+            (name.starts_with('_')
+                && name[1..]
+                    .chars()
+                    .next()
+                    .is_some_and(|character| character.is_ascii_alphabetic())
+                && name[2..]
+                    .chars()
+                    .all(|character| character.is_ascii_alphanumeric() || character == '_'))
+            .then(|| name.to_owned())
+        })
+        .collect()
 }
 
 fn instruction_node(

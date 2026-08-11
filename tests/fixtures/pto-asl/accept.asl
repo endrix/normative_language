@@ -1,4 +1,7 @@
 // PTO-INSTRUCTION: {"id":"PTO-TILE-TLOAD","surface":"tile","classification":["memory-and-data-movement","regular"],"depends_on":["PTO-TILE-MODEL-MEMORY-LOAD-STORE","generated:decoders"],"mnemonic":"TLOAD","catalog_records":[{"semantic_handler":"TLOAD","contract_status":"reviewed-complete","state_effects":["operand:destination0:destination"]}]}
+// PTO-STATE: {"id":"PTO-STATE-TILE-LOCAL","classification":["tile","local"],"scope":"core","owner":"PTO-TILE-TLOAD","members":["_Tiles","_TileAllocationMasks"],"depends_on":[]}
+var _Tiles : array [[64]] of bits(32);
+var _TileAllocationMasks : array [[64]] of bits(4);
 
 // NDF-BEGIN: PTO-TILE-CAPACITY
 // ndf: kind=contract level=L1 layer=tile status=accepted
