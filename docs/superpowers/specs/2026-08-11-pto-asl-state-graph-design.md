@@ -95,7 +95,7 @@ the source-unit node.
 No new IR kind is necessary. Nodes carry a stable adapter attribute:
 
 ```text
-pto_entity=unit | state | instruction | clause
+pto_entity=unit | synthetic-unit | state | instruction | clause
 ```
 
 ## 6. Authored PTO Metadata
@@ -122,6 +122,14 @@ mnemonic=<mnemonic when present>
 ```
 
 Each `depends_on` entry becomes a `depends-on` edge between unit nodes.
+
+PTO-SPEC has one existing virtual dependency name, `generated:decoders`. The
+adapter maps that exact spelling to the canonical source node
+`ndf://pto-spec/PTO-SYNTHETIC-GENERATED-DECODERS` with
+`pto_entity=synthetic-unit`. The node has virtual source path
+`generated:decoders`; it denotes the deterministic decoder projection and does
+not make generated output normative. Any other non-`PTO-*` dependency is an
+error.
 
 ### 6.2 State-family metadata
 
@@ -204,6 +212,8 @@ The adapter fails closed for:
 - duplicate unit or state identities;
 - an instruction unit ID that collides with another unit;
 - a unit dependency that does not resolve inside the complete PTO project;
+- a non-`PTO-*` unit dependency other than the exact supported
+  `generated:decoders` alias;
 - a state owner that differs from the same-file unit ID;
 - a state member that is not declared by an ASL `var` declaration in the owner
   file;
