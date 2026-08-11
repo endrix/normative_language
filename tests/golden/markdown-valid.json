@@ -13,6 +13,32 @@
       },
       "target": "ndf://fixture/PIPE-ISSUE-001",
       "type": "refines"
+    },
+    {
+      "attributes": {},
+      "source": "ndf://fixture/PIPE-PTO-001",
+      "source_span": {
+        "column": 1,
+        "end_column": null,
+        "end_line": null,
+        "line": 25,
+        "path": "docs/pipeline.md"
+      },
+      "target": "ndf://pto-spec/PTO-INST-TILE-TLOAD",
+      "type": "conforms-to"
+    },
+    {
+      "attributes": {},
+      "source": "ndf://fixture/PIPE-PTO-EXT-001",
+      "source_span": {
+        "column": 1,
+        "end_column": null,
+        "end_line": null,
+        "line": 30,
+        "path": "docs/pipeline.md"
+      },
+      "target": "ndf://pto-spec/PTO-INST-TILE-PEXT",
+      "type": "tracks"
     }
   ],
   "nodes": [
@@ -74,6 +100,46 @@
       },
       "status": "active",
       "title": "Issue mechanism"
+    },
+    {
+      "attributes": {},
+      "body": "The pipeline MUST preserve the PTO load contract.",
+      "domain": "core",
+      "id": "ndf://fixture/PIPE-PTO-001",
+      "kind": "requirement",
+      "modality": "must",
+      "owner": "core",
+      "refinement": "L1",
+      "source": {
+        "column": 1,
+        "end_column": null,
+        "end_line": null,
+        "line": 24,
+        "path": "docs/pipeline.md"
+      },
+      "status": "active",
+      "title": "PTO conformance"
+    },
+    {
+      "attributes": {
+        "expected": "absent"
+      },
+      "body": "The extension remains outside the accepted PTO release.",
+      "domain": "core",
+      "id": "ndf://fixture/PIPE-PTO-EXT-001",
+      "kind": "requirement",
+      "modality": "tbd",
+      "owner": "core",
+      "refinement": "L1",
+      "source": {
+        "column": 1,
+        "end_column": null,
+        "end_line": null,
+        "line": 29,
+        "path": "docs/pipeline.md"
+      },
+      "status": "draft",
+      "title": "Prospective PTO extension"
     }
   ],
   "schema_version": "0.1"

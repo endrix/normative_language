@@ -1,9 +1,12 @@
 {
   "coverage": {
     "open_items": [],
-    "tbd": [],
+    "tbd": [
+      "ndf://fixture/PIPE-PTO-EXT-001"
+    ],
     "unverified": [
-      "ndf://fixture/PIPE-ISSUE-001"
+      "ndf://fixture/PIPE-ISSUE-001",
+      "ndf://fixture/PIPE-PTO-001"
     ]
   },
   "query": [
@@ -44,6 +47,25 @@
       },
       "status": "active",
       "title": "Issue mechanism"
+    },
+    {
+      "attributes": {},
+      "body": "The pipeline MUST preserve the PTO load contract.",
+      "domain": "core",
+      "id": "ndf://fixture/PIPE-PTO-001",
+      "kind": "requirement",
+      "modality": "must",
+      "owner": "core",
+      "refinement": "L1",
+      "source": {
+        "column": 1,
+        "end_column": null,
+        "end_line": null,
+        "line": 24,
+        "path": "docs/pipeline.md"
+      },
+      "status": "active",
+      "title": "PTO conformance"
     }
   ],
   "trace": {

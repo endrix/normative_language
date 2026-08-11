@@ -27,6 +27,8 @@ const EDGE_FIELDS: &[&str] = &[
     "evidenced-by",
     "couples-with",
     "blocks-by",
+    "conforms-to",
+    "tracks",
 ];
 const CANONICAL_FIELDS: &[&str] = &[
     "kind",
@@ -47,6 +49,7 @@ const ATTRIBUTE_FIELDS: &[&str] = &[
     "origin-status",
     "model",
     "superseded-by",
+    "expected",
 ];
 
 pub fn parse_markdown(
@@ -173,6 +176,14 @@ pub fn parse_markdown(
         if let Some(migration) = migration {
             builder.add_diagnostic(migration);
         }
+        if let Some(item) = cross_project_metadata_diagnostic(
+            &metadata,
+            &relative_path,
+            (metadata_index + 1) as u32,
+        ) {
+            builder.add_diagnostic(item);
+            continue;
+        }
         let Some(kind) = node_kind(metadata.get("kind").map_or("information", String::as_str))
         else {
             builder.add_diagnostic(invalid_value(&relative_path, metadata_index + 1, "kind"));
@@ -264,6 +275,35 @@ pub fn parse_markdown(
         edges: graph.edges,
         diagnostics: graph.diagnostics,
     })
+}
+
+fn cross_project_metadata_diagnostic(
+    metadata: &BTreeMap<String, String>,
+    path: &str,
+    line: u32,
+) -> Option<Diagnostic> {
+    match (
+        metadata.get("tracks").map(String::as_str),
+        metadata.get("expected").map(String::as_str),
+    ) {
+        (None, None) | (Some(_), Some("absent")) => None,
+        (None, Some(_)) => Some(diagnostic(
+            "NDF-XREF-001",
+            DiagnosticSeverity::Error,
+            "expected is valid only with a tracks relationship",
+            path,
+            line,
+            "Add tracks=<external NDF URI> or remove expected.",
+        )),
+        (Some(_), _) => Some(diagnostic(
+            "NDF-XREF-001",
+            DiagnosticSeverity::Error,
+            "tracks requires expected=absent",
+            path,
+            line,
+            "Set expected=absent for the tracked external identity.",
+        )),
+    }
 }
 
 struct Heading<'a> {
