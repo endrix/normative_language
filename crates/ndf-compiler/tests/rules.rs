@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
-use ndf_compiler::rules::{ValidationPolicy, validate_graph};
+use ndf_compiler::dependencies::DependencyGraph;
+use ndf_compiler::rules::{ValidationPolicy, validate_graph, validate_project_graph};
 use ndf_core::identity::NodeId;
 use ndf_core::model::{Edge, Graph, LifecycleStatus, Modality, Node, NodeKind, SourceSpan};
 
@@ -25,6 +26,66 @@ fn codes(graph: &Graph) -> Vec<String> {
         .into_iter()
         .map(|diagnostic| diagnostic.code)
         .collect()
+}
+
+fn project_codes(graph: &Graph, dependencies: &BTreeMap<String, DependencyGraph>) -> Vec<String> {
+    validate_project_graph(graph, dependencies, &ValidationPolicy::default())
+        .into_iter()
+        .map(|diagnostic| diagnostic.code)
+        .collect()
+}
+
+fn dependency_graph(nodes: Vec<Node>) -> BTreeMap<String, DependencyGraph> {
+    BTreeMap::from([(
+        "pto-spec".to_owned(),
+        DependencyGraph {
+            project_id: "pto-spec".to_owned(),
+            revision: "0123456789abcdef0123456789abcdef01234567".to_owned(),
+            graph: Graph {
+                nodes,
+                edges: Vec::new(),
+                diagnostics: Vec::new(),
+            },
+        },
+    )])
+}
+
+fn external_contract(local_id: &str) -> Node {
+    Node {
+        id: NodeId::new("pto-spec", local_id).unwrap(),
+        kind: NodeKind::Definition,
+        title: "PTO contract".to_owned(),
+        source: SourceSpan::new("asl/contracts.asl", 1).unwrap(),
+        modality: None,
+        refinement: Some("L1".to_owned()),
+        domain: Some("tile".to_owned()),
+        status: LifecycleStatus::Active,
+        owner: Some("pto-spec".to_owned()),
+        body: String::new(),
+        attributes: BTreeMap::new(),
+    }
+}
+
+fn cross_project_graph(edge_type: &str, target: NodeId, expected_absent: bool) -> Graph {
+    let mut source = requirement("DavinciOO MUST preserve the PTO contract.", Some("core"));
+    if expected_absent {
+        source.modality = Some(Modality::Tbd);
+        source
+            .attributes
+            .insert("expected".to_owned(), "absent".to_owned());
+    }
+    let edge = Edge::new(
+        source.id.clone(),
+        target,
+        edge_type,
+        Some(source.source.clone()),
+    )
+    .unwrap();
+    Graph {
+        nodes: vec![source],
+        edges: vec![edge],
+        diagnostics: Vec::new(),
+    }
 }
 
 #[test]
@@ -101,4 +162,76 @@ fn lifecycle_and_owner_invariants_are_enforced() {
     };
 
     assert_eq!(codes(&graph), ["NDF-LIFE-001", "NDF-OWN-001"]);
+}
+
+#[test]
+fn resolved_conformance_target_passes() {
+    let target = external_contract("PTO-INST-TILE-TLOAD");
+    let graph = cross_project_graph("conforms-to", target.id.clone(), false);
+
+    assert_eq!(
+        project_codes(&graph, &dependency_graph(vec![target])),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn missing_conformance_target_is_rejected() {
+    let graph = cross_project_graph(
+        "conforms-to",
+        NodeId::new("pto-spec", "PTO-INST-TILE-MISSING").unwrap(),
+        false,
+    );
+
+    assert_eq!(
+        project_codes(&graph, &dependency_graph(Vec::new())),
+        ["NDF-XREF-002"]
+    );
+}
+
+#[test]
+fn target_in_undeclared_project_is_rejected() {
+    let graph = cross_project_graph(
+        "conforms-to",
+        NodeId::new("another-spec", "EXT-001").unwrap(),
+        false,
+    );
+
+    assert_eq!(project_codes(&graph, &BTreeMap::new()), ["NDF-XREF-003"]);
+}
+
+#[test]
+fn expected_absent_watch_passes_while_target_is_missing() {
+    let graph = cross_project_graph(
+        "tracks",
+        NodeId::new("pto-spec", "PTO-INST-TILE-PEXT").unwrap(),
+        true,
+    );
+
+    assert_eq!(
+        project_codes(&graph, &dependency_graph(Vec::new())),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn expected_absent_watch_requires_review_when_target_appears() {
+    let target = external_contract("PTO-INST-TILE-PEXT");
+    let graph = cross_project_graph("tracks", target.id.clone(), true);
+
+    assert_eq!(
+        project_codes(&graph, &dependency_graph(vec![target])),
+        ["NDF-XREF-004"]
+    );
+}
+
+#[test]
+fn expected_absent_watch_cannot_target_the_consumer_project() {
+    let graph = cross_project_graph(
+        "tracks",
+        NodeId::new("fixture", "PIPE-PROSPECTIVE-001").unwrap(),
+        true,
+    );
+
+    assert_eq!(project_codes(&graph, &BTreeMap::new()), ["NDF-XREF-001"]);
 }

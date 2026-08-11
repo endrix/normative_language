@@ -13,6 +13,15 @@ All notable changes to NDF are documented here.
 - JSON workflows for build, check, show, trace, coverage, dependency reports,
   semantic diff, export, ID allocation, and safe fixes.
 - Exact dependency locking and no-regression diagnostic baselines.
+- Read-only graph dependencies plus `conforms-to` and expected-absent `tracks`
+  relationships for cross-project contracts.
+- Stable PTO instruction identities with indexed encoding, semantics, legality,
+  fault, completion, architectural-state, and memory-ordering facets.
+- Deterministic PTO release impact analysis and the `ndf impact pto-release`
+  command, including complete conformance/watch inventories and transitive
+  consumer impact.
+- Cross-project diagnostics `NDF-XREF-001` through `NDF-XREF-004` and PTO
+  instruction identity collision diagnostic `NDF-ASL-005`.
 
 ### Changed
 
@@ -22,6 +31,9 @@ All notable changes to NDF are documented here.
   `status`.
 - SQLite is defined as derived, disposable state rather than an authored
   authority.
+- Dependency graphs remain separate namespaces and are never merged into a
+  consumer index; every graph dependency is loaded only from an exact, clean
+  Git revision.
 
 ### Compatibility
 
@@ -31,3 +43,5 @@ All notable changes to NDF are documented here.
   PTO adapter.
 - NDF has no supported Python package, import API, or PyO3 compatibility layer.
 - Format, IR, JSON output, CLI, and plugin surfaces remain experimental.
+- This release does not change format 0.2, canonical IR 0.1, JSON envelope
+  schema 0.1, SQLite schema v1, or the independently versioned plugin API.

@@ -161,7 +161,7 @@ spec/                          # the spec root ("the bible")
 Three structures coexist:
 
 1. **The tree** — the directory/heading hierarchy. This is the *ownership and maintenance* structure: every clause has exactly one home, and the tree is how humans navigate and how editing responsibility is divided.
-2. **The graph** — typed cross-references between clauses (`refines`, `depends-on`, `conflicts-with`, `verifies`, `derived-from`, `couples-with`, plus plain mentions). This is the *semantic* structure; it is non-tree and freely crosses the hierarchy.
+2. **The graph** — typed cross-references between clauses (`refines`, `depends-on`, `conflicts-with`, `verifies`, `derived-from`, `couples-with`, `conforms-to`, `tracks`, plus plain mentions). This is the *semantic* structure; it is non-tree and freely crosses the hierarchy.
 3. **The history** — Git commits, plus explicit per-clause revision markers and decision records. This is the *evolution* structure.
 
 The discipline in one sentence: **prose lives in a tree, meaning lives in a graph, time lives in git — and stable clause IDs are the rivets holding all three together.**
@@ -200,6 +200,7 @@ Rules:
   - `status` — `draft` / `stable` / `deprecated` / `superseded-by=ID`.
   - `since` — the spec version in which the clause entered its current substance.
 - **Cross-references** use `[[ID]]` (with optional `| display text`). The tool resolves them, fails the build on dangling refs, and generates a backlink index. Typed edges beyond plain reference are written as metadata: `<!-- ndf: refines=FWD-ADM-000 verifies=... -->`.
+- **Cross-project contracts** use full `ndf://project/ID` identities. `conforms-to=` asserts that the consumer clause satisfies an external contract and therefore requires a target in an exact locked dependency graph. `tracks=` records a prospective external identity without asserting conformance; it is valid only with `expected=absent`. When a tracked identity becomes present, the compiler requires review instead of silently changing the consumer clause.
 - **Normative keywords** (MUST/SHOULD/MAY/MUST NOT) are used per RFC 2119 inside `req` clauses; the linter flags `req` clauses containing none, and flags MUST/SHALL appearing in `info` clauses.
 
 Everything outside clause blocks — introductory prose, figures, examples — is informative by default. **The normative/informative boundary is thus syntactically explicit**, which is the single biggest ambiguity in traditional specs.
@@ -491,6 +492,12 @@ commit. Release and CI builds MUST resolve checked-out dependencies against
 that lock and MUST NOT fetch an unpinned branch. Local dirty overrides are
 non-release unless an explicit project policy allows them.
 
+A dependency declaration is tool-only by default. Set `graph: true` only when
+the dependency publishes an `ndf.yaml` project whose nodes are valid external
+relationship targets. The compiler still verifies the exact revision and
+cleanliness of every tool-only dependency, but it loads and validates a
+read-only external graph only for explicitly marked graph dependencies.
+
 Legacy syntax is accepted only through named adapters. The DavinciOO adapter
 maps `kind=req`, `level=must`, `layer=L1`, and `status=stable` to canonical
 `kind=requirement`, `modality=must`, `refinement=L1`, and `status=active`, while
@@ -582,7 +589,8 @@ key           := "kind" | "level" | "layer" | "status" | "since"
                | "refines" | "depends-on" | "conflicts-with"
                | "verifies" | "origin" | "origin-status" | "model"
                | "affects" | "blocks" | "date"
-               | "couples-with" | "default" | "explore" | "unit"
+               | "couples-with" | "conforms-to" | "tracks"
+               | "expected" | "default" | "explore" | "unit"
 body          := markdown, containing:
                  [[ID]] | [[ID | text]]        cross-references
                  ```lang ndf:normative ... ``` normative code islands

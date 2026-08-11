@@ -53,3 +53,56 @@ fn manifest_reports_the_first_missing_required_field() {
 
     assert!(error.to_string().contains("missing required field: roots"));
 }
+
+#[test]
+fn dependency_graph_loading_is_explicit_and_defaults_to_tool_only() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("ndf.yaml");
+    fs::write(
+        &path,
+        r#"format_version: '0.2'
+project: consumer
+roots: []
+id_prefixes: [REQ]
+domains: []
+policies: {}
+dependencies:
+  ndf:
+    path: toolchains/ndf
+  pto-spec:
+    path: isa
+    graph: true
+"#,
+    )
+    .unwrap();
+
+    let manifest = ProjectManifest::load(&path).unwrap();
+
+    assert!(!manifest.dependencies["ndf"].graph);
+    assert!(manifest.dependencies["pto-spec"].graph);
+}
+
+#[test]
+fn dependency_graph_flag_must_be_boolean() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("ndf.yaml");
+    fs::write(
+        &path,
+        r#"format_version: '0.2'
+project: consumer
+roots: []
+id_prefixes: [REQ]
+domains: []
+policies: {}
+dependencies:
+  pto-spec:
+    path: isa
+    graph: yes
+"#,
+    )
+    .unwrap();
+
+    let error = ProjectManifest::load(&path).unwrap_err();
+
+    assert!(error.to_string().contains("graph must be a boolean"));
+}

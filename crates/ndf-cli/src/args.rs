@@ -23,6 +23,9 @@ impl Arguments {
                 ReportCommand::Dependencies { .. } => "report dependencies",
             },
             Some(Command::Diff { .. }) => "diff",
+            Some(Command::Impact { command }) => match command {
+                ImpactCommand::PtoRelease { .. } => "impact pto-release",
+            },
             Some(Command::Export { .. }) => "export",
             Some(Command::Id { .. }) => "id allocate",
             Some(Command::Fix { .. }) => "fix",
@@ -73,6 +76,10 @@ pub enum Command {
         #[arg(long, value_enum, default_value_t = JsonFormat::Json)]
         format: JsonFormat,
     },
+    Impact {
+        #[command(subcommand)]
+        command: ImpactCommand,
+    },
     Export {
         #[arg(long)]
         index: PathBuf,
@@ -91,6 +98,20 @@ pub enum Command {
         generated_only: bool,
         #[arg(long)]
         check: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ImpactCommand {
+    PtoRelease {
+        #[arg(long)]
+        before: PathBuf,
+        #[arg(long)]
+        after: PathBuf,
+        #[arg(long)]
+        consumer_index: PathBuf,
+        #[arg(long, value_enum, default_value_t = JsonFormat::Json)]
+        format: JsonFormat,
     },
 }
 

@@ -22,6 +22,15 @@ fn graph_value(path: &Path, manifest: &ProjectManifest) -> Value {
     .unwrap()
 }
 
+fn parse_fixture(text: &str) -> ndf_core::model::ParseResult {
+    let directory = tempdir().unwrap();
+    let path = directory.path().join("contracts.md");
+    fs::write(&path, text).unwrap();
+    let manifest =
+        ProjectManifest::for_test("davincioo", directory.path(), ["DOC", "ISA"], ["isa"]);
+    parse_markdown(&path, &manifest).unwrap()
+}
+
 #[test]
 fn valid_markdown_matches_the_frozen_contract() {
     let root = repository().join("tests/fixtures/markdown/project");
@@ -153,5 +162,93 @@ This contract MUST remain traceable after supersession.
             .filter(|diagnostic| diagnostic.code == "NDF-MIG-001")
             .count(),
         4
+    );
+}
+
+#[test]
+fn cross_project_relationships_preserve_edges_and_absence_expectation() {
+    let parsed = parse_fixture(
+        r#"---
+doc_id: DOC-CROSS-PROJECT
+status: active
+authority: normative
+owner: architecture
+---
+
+# Cross-project contracts
+
+## Accepted load contract {#ISA-TLOAD-001}
+<!-- ndf: kind=requirement modality=must refinement=L1 status=active conforms-to=ndf://pto-spec/PTO-INST-TILE-TLOAD -->
+
+DavinciOO MUST conform to the accepted load contract.
+
+## Prospective extension {#ISA-PEXT-001}
+<!-- ndf: kind=requirement modality=tbd refinement=L1 status=draft tracks=ndf://pto-spec/PTO-INST-TILE-PEXT expected=absent -->
+
+The prospective operation remains disabled.
+"#,
+    );
+
+    assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
+    assert!(parsed.edges.iter().any(|edge| {
+        edge.edge_type == "conforms-to"
+            && edge.source.to_string() == "ndf://davincioo/ISA-TLOAD-001"
+            && edge.target.to_string() == "ndf://pto-spec/PTO-INST-TILE-TLOAD"
+    }));
+    assert!(parsed.edges.iter().any(|edge| {
+        edge.edge_type == "tracks"
+            && edge.source.to_string() == "ndf://davincioo/ISA-PEXT-001"
+            && edge.target.to_string() == "ndf://pto-spec/PTO-INST-TILE-PEXT"
+    }));
+    let watch = parsed
+        .nodes
+        .iter()
+        .find(|node| node.id.to_string() == "ndf://davincioo/ISA-PEXT-001")
+        .unwrap();
+    assert_eq!(
+        watch.attributes.get("expected").map(String::as_str),
+        Some("absent")
+    );
+}
+
+#[test]
+fn expected_is_restricted_to_tracks_and_absent() {
+    let parsed = parse_fixture(
+        r#"---
+doc_id: DOC-CROSS-PROJECT-INVALID
+status: active
+authority: normative
+owner: architecture
+---
+
+# Invalid cross-project contracts
+
+## Unsupported expectation {#ISA-WATCH-001}
+<!-- ndf: kind=requirement modality=tbd refinement=L1 status=draft tracks=ndf://pto-spec/PTO-INST-TILE-PEXT expected=present -->
+
+The expectation is invalid.
+
+## Missing watch {#ISA-WATCH-002}
+<!-- ndf: kind=requirement modality=tbd refinement=L1 status=draft expected=absent -->
+
+The expectation has no watched identity.
+
+## Missing expectation {#ISA-WATCH-003}
+<!-- ndf: kind=requirement modality=tbd refinement=L1 status=draft tracks=ndf://pto-spec/PTO-INST-TILE-CEXT -->
+
+The watched identity has no absence expectation.
+"#,
+    );
+
+    let diagnostics: Vec<_> = parsed
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code == "NDF-XREF-001")
+        .collect();
+    assert_eq!(diagnostics.len(), 3, "{:#?}", parsed.diagnostics);
+    assert!(
+        diagnostics.iter().all(|diagnostic| {
+            diagnostic.severity == ndf_core::model::DiagnosticSeverity::Error
+        })
     );
 }

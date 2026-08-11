@@ -17,5 +17,5 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - run: cargo test --workspace --all-features --locked
       - run: cargo build --workspace --release --locked
-      - run: scripts/ndf check --root tests/fixtures/markdown/project --format json
+      - run: scripts/ndf check --root tests/fixtures/cli-smoke/project --format json
       - run: git diff --check

@@ -112,10 +112,10 @@ impl NdfIndex {
             .connection
             .prepare("SELECT * FROM nodes WHERE uri = ?")?;
         let mut rows = statement.query([uri])?;
-        rows.next()?
-            .map(node_record)
-            .transpose()
-            .map_err(Into::into)
+        let node = rows.next()?.map(node_record).transpose()?;
+        drop(rows);
+        drop(statement);
+        node.map(|node| self.with_node_attributes(node)).transpose()
     }
 
     pub fn all_nodes(&self) -> Result<Vec<NodeRecord>, CompilerError> {
@@ -126,12 +126,8 @@ impl NdfIndex {
         &self,
         mut visitor: impl FnMut(NodeRecord) -> Result<(), CompilerError>,
     ) -> Result<(), CompilerError> {
-        let mut statement = self
-            .connection
-            .prepare("SELECT * FROM nodes ORDER BY uri")?;
-        let mut rows = statement.query([])?;
-        while let Some(row) = rows.next()? {
-            visitor(node_record(row)?)?;
+        for node in self.all_nodes()? {
+            visitor(node)?;
         }
         Ok(())
     }
@@ -155,9 +151,14 @@ impl NdfIndex {
         let sql = format!("SELECT * FROM nodes{where_clause} ORDER BY uri");
         let mut statement = self.connection.prepare(&sql)?;
         let values = filters.iter().map(|(_, value)| *value);
-        let records = statement
+        let mut records = statement
             .query_map(params_from_iter(values), node_record)?
             .collect::<Result<Vec<_>, _>>()?;
+        drop(statement);
+        let mut attributes = self.all_node_attributes()?;
+        for node in &mut records {
+            node.attributes = attributes.remove(&node.id).unwrap_or_default();
+        }
         Ok(records)
     }
 
@@ -363,6 +364,33 @@ impl NdfIndex {
             .connection
             .query_row("SELECT COUNT(*) FROM edges", [], |row| row.get(0))?;
         Ok((nodes as usize, edges as usize))
+    }
+
+    fn with_node_attributes(&self, mut node: NodeRecord) -> Result<NodeRecord, CompilerError> {
+        let mut statement = self
+            .connection
+            .prepare("SELECT key, value FROM node_attrs WHERE node_uri = ? ORDER BY key")?;
+        node.attributes = statement
+            .query_map([&node.id], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<_, _>>()?;
+        Ok(node)
+    }
+
+    fn all_node_attributes(
+        &self,
+    ) -> Result<BTreeMap<String, BTreeMap<String, String>>, CompilerError> {
+        let mut statement = self
+            .connection
+            .prepare("SELECT node_uri, key, value FROM node_attrs ORDER BY node_uri, key")?;
+        let mut rows = statement.query([])?;
+        let mut attributes = BTreeMap::<String, BTreeMap<String, String>>::new();
+        while let Some(row) = rows.next()? {
+            attributes
+                .entry(row.get(0)?)
+                .or_default()
+                .insert(row.get(1)?, row.get(2)?);
+        }
+        Ok(attributes)
     }
 }
 

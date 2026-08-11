@@ -9,6 +9,7 @@ use crate::CompilerError;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DependencyDeclaration {
     pub path: String,
+    pub graph: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -65,16 +66,12 @@ impl ProjectManifest {
             let declaration = value
                 .as_mapping()
                 .ok_or_else(|| contract("each dependency declaration must be a named mapping"))?;
-            reject_unknown(declaration, &["path"], "dependency declaration")?;
-            if declaration.len() != 1 {
-                return Err(contract(
-                    "dependency declaration must contain only a string path",
-                ));
-            }
+            reject_unknown(declaration, &["path", "graph"], "dependency declaration")?;
             dependencies.insert(
                 name,
                 DependencyDeclaration {
                     path: required_string(declaration, "path")?,
+                    graph: optional_bool(declaration, "graph")?,
                 },
             );
         }
@@ -198,6 +195,14 @@ fn optional_strings(mapping: &Mapping, name: &str) -> Result<Vec<String>, Compil
     mapping
         .get(key(name))
         .map_or_else(|| Ok(Vec::new()), |value| string_list(value, name))
+}
+
+fn optional_bool(mapping: &Mapping, name: &str) -> Result<bool, CompilerError> {
+    mapping.get(key(name)).map_or(Ok(false), |value| {
+        value
+            .as_bool()
+            .ok_or_else(|| contract(format!("{name} must be a boolean")))
+    })
 }
 
 fn string_list(value: &Value, name: &str) -> Result<Vec<String>, CompilerError> {

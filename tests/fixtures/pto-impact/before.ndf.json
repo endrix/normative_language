@@ -1,0 +1,9 @@
+{
+  "nodes": [
+    {"id":"ndf://pto-spec/PTO-INST-TILE-TLOAD","source":"asl/tile/TLOAD.asl","semantic_handler":"TLOAD","semantic_facets":"architectural-state,completion,encoding,fault,instruction-semantics,legality,memory-ordering"},
+    {"id":"ndf://pto-spec/PTO-INST-TILE-TMOV","source":"asl/tile/TMOV.asl","semantic_handler":"TMOV","semantic_facets":"architectural-state,instruction-semantics,legality"},
+    {"id":"ndf://pto-spec/PTO-INST-TILE-TOLD","source":"asl/tile/TOLD.asl","semantic_handler":"TOLD","semantic_facets":"instruction-semantics,legality"},
+    {"id":"ndf://pto-spec/PTO-INST-TILE-TSTORE","source":"asl/tile/TSTORE.asl","semantic_handler":"TSTORE","semantic_facets":"architectural-state,completion,encoding,fault,instruction-semantics,legality,memory-ordering"}
+  ],
+  "edges": []
+}

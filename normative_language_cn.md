@@ -161,7 +161,7 @@ spec/                          # 规范根目录（"圣经"）
 三种结构共存：
 
 1. **树**——目录/标题层级。这是*归属与维护*结构：每个条款有且仅有一个家，树是人类导航的方式，也是编辑责任划分的方式。
-2. **图**——条款之间带类型的交叉引用（`refines`、`depends-on`、`conflicts-with`、`verifies`、`derived-from`、`couples-with`，外加普通提及）。这是*语义*结构；它是非树的，可以自由穿越层级。
+2. **图**——条款之间带类型的交叉引用（`refines`、`depends-on`、`conflicts-with`、`verifies`、`derived-from`、`couples-with`、`conforms-to`、`tracks`，外加普通提及）。这是*语义*结构；它是非树的，可以自由穿越层级。
 3. **历史**——Git 提交，加上显式的条款级修订标记与决策记录。这是*演化*结构。
 
 一句话概括这套纪律：**散文活在树里，语义活在图里，时间活在 git 里——而稳定的条款 ID 是把三者铆在一起的铆钉。**
@@ -200,6 +200,7 @@ Frames failing any condition MUST be discarded and the per-port
   - `status` —— `draft` / `stable` / `deprecated` / `superseded-by=ID`。
   - `since` —— 该条款当前实质内容进入规范时的版本号。
 - **交叉引用**使用 `[[ID]]`（可选加 `| 显示文本`）。工具负责解析，遇到悬空引用即令构建失败，并生成反向链接索引。普通引用之外的带类型的边写在元数据中：`<!-- ndf: refines=FWD-ADM-000 verifies=... -->`。
+- **跨项目契约**使用完整的 `ndf://project/ID` 身份。`conforms-to=` 断言消费方条款满足一个外部契约，因此其目标必须存在于精确锁定的依赖图中。`tracks=` 只记录一个预期的外部身份，不断言符合性；它仅能与 `expected=absent` 一起使用。当被追踪的身份变为存在时，编译器要求评审，而不会静默修改消费方条款。
 - **规范性关键词**（MUST/SHOULD/MAY/MUST NOT）按 RFC 2119 在 `req` 条款内使用；linter 会标记不含任何关键词的 `req` 条款，也会标记出现在 `info` 条款中的 MUST/SHALL。
 
 条款块之外的一切——引言散文、图、示例——默认为资料性（informative）。**规范性与资料性的边界由此在语法上被显式化**，而这正是传统规范中最大的一处含混。
@@ -488,6 +489,11 @@ The core MUST issue no more than two instructions per cycle.
 lock 校验已检出的依赖，禁止获取未锁定分支。脏的本地覆盖不是发布构建，
 除非项目策略明确允许。
 
+依赖声明默认只代表工具依赖。只有当依赖发布了 `ndf.yaml` 项目、且其节点
+可以作为有效的外部关系目标时，才设置 `graph: true`。编译器仍会校验每个
+工具依赖的精确 revision 和洁净度，但只为显式标记的图依赖加载并校验只读
+外部图。
+
 旧语法只能通过具名 adapter 接受。DavinciOO adapter 把 `kind=req`、
 `level=must`、`layer=L1`、`status=stable` 映射为规范的
 `kind=requirement`、`modality=must`、`refinement=L1`、`status=active`，
@@ -576,7 +582,8 @@ key           := "kind" | "level" | "layer" | "status" | "since"
                | "refines" | "depends-on" | "conflicts-with"
                | "verifies" | "origin" | "origin-status" | "model"
                | "affects" | "blocks" | "date"
-               | "couples-with" | "default" | "explore" | "unit"
+               | "couples-with" | "conforms-to" | "tracks"
+               | "expected" | "default" | "explore" | "unit"
 body          := markdown，其中可包含：
                  [[ID]] | [[ID | text]]        交叉引用
                  ```lang ndf:normative ... ``` 规范性代码岛

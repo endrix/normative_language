@@ -1,0 +1,12 @@
+{
+  "nodes": [
+    {"id":"ndf://pto-spec/PTO-INST-TILE-TLOAD","source":"asl/tile/TLOAD.asl","semantic_handler":"ExecuteTileLoadV2","semantic_facets":"architectural-state,completion,encoding,fault,instruction-semantics,legality,memory-ordering"},
+    {"id":"ndf://pto-spec/PTO-INST-TILE-TMOV","source":"asl/tile/data-movement/TMOV.asl","semantic_handler":"TMOV","semantic_facets":"architectural-state,instruction-semantics,legality"},
+    {"id":"ndf://pto-spec/PTO-INST-TILE-TNEW","source":"asl/tile/TNEW.asl","semantic_handler":"TNEW","semantic_facets":"instruction-semantics,legality"},
+    {"id":"ndf://pto-spec/PTO-INST-TILE-TOLD","source":"asl/tile/TOLD.asl","semantic_handler":"TOLD","semantic_facets":"instruction-semantics,legality"},
+    {"id":"ndf://pto-spec/PTO-INST-TILE-TWATCH","source":"asl/tile/TWATCH.asl","semantic_handler":"TWATCH","semantic_facets":"instruction-semantics"}
+  ],
+  "edges": [
+    {"source":"ndf://pto-spec/PTO-INST-TILE-TNEW","type":"supersedes","target":"ndf://pto-spec/PTO-INST-TILE-TOLD"}
+  ]
+}

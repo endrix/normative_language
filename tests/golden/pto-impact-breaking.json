@@ -1,0 +1,36 @@
+{
+  "schema_version": "1",
+  "compatibility": "breaking",
+  "conformance_targets": [
+    {"consumer_uri":"ndf://davincioo/DAV-ISA-TLOAD","target_uri":"ndf://pto-spec/PTO-INST-TILE-TLOAD"},
+    {"consumer_uri":"ndf://davincioo/DAV-ISA-TMOV","target_uri":"ndf://pto-spec/PTO-INST-TILE-TMOV"},
+    {"consumer_uri":"ndf://davincioo/DAV-ISA-TOLD","target_uri":"ndf://pto-spec/PTO-INST-TILE-TOLD"},
+    {"consumer_uri":"ndf://davincioo/DAV-ISA-TSTORE","target_uri":"ndf://pto-spec/PTO-INST-TILE-TSTORE"}
+  ],
+  "absence_watches": [
+    {"consumer_uri":"ndf://davincioo/DAV-WATCH-TWATCH","target_uri":"ndf://pto-spec/PTO-INST-TILE-TWATCH","expected":"absent","present":true}
+  ],
+  "changes": [
+    {"uri":"ndf://pto-spec/PTO-INST-TILE-TLOAD","kind":"modified","facets":["instruction-semantics"]},
+    {"uri":"ndf://pto-spec/PTO-INST-TILE-TMOV","kind":"moved","facets":["architectural-state","instruction-semantics","legality"]},
+    {"uri":"ndf://pto-spec/PTO-INST-TILE-TNEW","kind":"added","facets":["instruction-semantics","legality"]},
+    {"uri":"ndf://pto-spec/PTO-INST-TILE-TOLD","kind":"superseded","facets":["instruction-semantics","legality"]},
+    {"uri":"ndf://pto-spec/PTO-INST-TILE-TSTORE","kind":"removed","facets":["architectural-state","completion","encoding","fault","instruction-semantics","legality","memory-ordering"]},
+    {"uri":"ndf://pto-spec/PTO-INST-TILE-TWATCH","kind":"added","facets":["instruction-semantics"]}
+  ],
+  "affected_consumers": [
+    {"uri":"ndf://davincioo/DAV-ISA-TLOAD","direct":true,"reasons":["modified conformance target: ndf://pto-spec/PTO-INST-TILE-TLOAD"]},
+    {"uri":"ndf://davincioo/DAV-ISA-TMOV","direct":true,"reasons":["moved conformance target: ndf://pto-spec/PTO-INST-TILE-TMOV"]},
+    {"uri":"ndf://davincioo/DAV-ISA-TOLD","direct":true,"reasons":["superseded conformance target: ndf://pto-spec/PTO-INST-TILE-TOLD"]},
+    {"uri":"ndf://davincioo/DAV-ISA-TSTORE","direct":true,"reasons":["removed conformance target: ndf://pto-spec/PTO-INST-TILE-TSTORE"]},
+    {"uri":"ndf://davincioo/DAV-PIPE-TLOAD","direct":false,"reasons":["modified conformance target: ndf://pto-spec/PTO-INST-TILE-TLOAD"]},
+    {"uri":"ndf://davincioo/DAV-TEST-TLOAD","direct":false,"reasons":["modified conformance target: ndf://pto-spec/PTO-INST-TILE-TLOAD"]},
+    {"uri":"ndf://davincioo/DAV-WATCH-TWATCH","direct":true,"reasons":["expected-absent target became present: ndf://pto-spec/PTO-INST-TILE-TWATCH"]}
+  ],
+  "presence_changes": ["ndf://pto-spec/PTO-INST-TILE-TWATCH"],
+  "deterministic_actions": [
+    "block automatic PTO release adoption",
+    "rebuild and validate affected consumer closure"
+  ],
+  "human_decisions": ["approve each consumer conformance migration or waiver"]
+}

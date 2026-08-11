@@ -20,6 +20,9 @@
       {
         "attributes": {
           "mnemonic": "TLOAD",
+          "semantic_facets": "architectural-state,completion,encoding,fault,instruction-semantics,legality,memory-ordering",
+          "semantic_handler": "TLOAD",
+          "status": "reviewed-complete",
           "surface": "tile"
         },
         "body": "",
