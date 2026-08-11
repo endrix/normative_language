@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 
@@ -6,7 +6,7 @@ use ndf_core::identity::NodeId;
 use ndf_core::model::{
     Diagnostic, DiagnosticSeverity, Edge, LifecycleStatus, Node, NodeKind, ParseResult, SourceSpan,
 };
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::CompilerError;
 use crate::manifest::ProjectManifest;
@@ -293,11 +293,132 @@ fn instruction_node(
         status: LifecycleStatus::Active,
         owner: Some("pto-spec".to_owned()),
         body: String::new(),
-        attributes: BTreeMap::from([
-            ("surface".to_owned(), surface.to_owned()),
-            ("mnemonic".to_owned(), mnemonic.to_owned()),
-        ]),
+        attributes: instruction_attributes(&metadata, surface, mnemonic),
     }))
+}
+
+fn instruction_attributes(
+    metadata: &Map<String, Value>,
+    surface: &str,
+    mnemonic: &str,
+) -> BTreeMap<String, String> {
+    let semantic_handlers = string_field_values(metadata, &["semantic_handler"]);
+    let statuses = string_field_values(metadata, &["status", "contract_status"]);
+    let mut facets = BTreeSet::new();
+    for (facet, fields) in [
+        (
+            "encoding",
+            &["encoding", "encoding_kind", "selector", "function"][..],
+        ),
+        (
+            "instruction-semantics",
+            &["semantic_handler", "effect_contract", "semantic_summary"][..],
+        ),
+        ("legality", &["constraints", "legality_handler"][..]),
+        ("fault", &["fault_contract"][..]),
+        (
+            "completion",
+            &["completion_contract", "restart_contract"][..],
+        ),
+        ("architectural-state", &["state_effects"][..]),
+        (
+            "memory-ordering",
+            &[
+                "memory_ordering",
+                "memory_ordering_contract",
+                "ordering_contract",
+                "memory_events",
+            ][..],
+        ),
+    ] {
+        if metadata_has_any(metadata, fields) {
+            facets.insert(facet);
+        }
+    }
+
+    BTreeMap::from([
+        ("surface".to_owned(), surface.to_owned()),
+        ("mnemonic".to_owned(), mnemonic.to_owned()),
+        (
+            "semantic_handler".to_owned(),
+            joined_or_unspecified(semantic_handlers),
+        ),
+        ("status".to_owned(), joined_or_unspecified(statuses)),
+        (
+            "semantic_facets".to_owned(),
+            facets.into_iter().collect::<Vec<_>>().join(","),
+        ),
+    ])
+}
+
+fn joined_or_unspecified(values: BTreeSet<String>) -> String {
+    if values.is_empty() {
+        "unspecified".to_owned()
+    } else {
+        values.into_iter().collect::<Vec<_>>().join(",")
+    }
+}
+
+fn string_field_values(metadata: &Map<String, Value>, fields: &[&str]) -> BTreeSet<String> {
+    let mut values = BTreeSet::new();
+    for (name, value) in metadata {
+        if fields.contains(&name.as_str())
+            && let Some(value) = value.as_str()
+            && !value.is_empty()
+        {
+            values.insert(value.to_owned());
+        }
+        collect_string_field_values(value, fields, &mut values);
+    }
+    values
+}
+
+fn collect_string_field_values(value: &Value, fields: &[&str], values: &mut BTreeSet<String>) {
+    match value {
+        Value::Object(object) => {
+            for (name, value) in object {
+                if fields.contains(&name.as_str())
+                    && let Some(value) = value.as_str()
+                    && !value.is_empty()
+                {
+                    values.insert(value.to_owned());
+                }
+                collect_string_field_values(value, fields, values);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                collect_string_field_values(item, fields, values);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn metadata_has_any(metadata: &Map<String, Value>, fields: &[&str]) -> bool {
+    metadata.iter().any(|(name, value)| {
+        (fields.contains(&name.as_str()) && meaningful(value)) || value_has_any(value, fields)
+    })
+}
+
+fn value_has_any(value: &Value, fields: &[&str]) -> bool {
+    match value {
+        Value::Object(object) => object.iter().any(|(name, value)| {
+            (fields.contains(&name.as_str()) && meaningful(value)) || value_has_any(value, fields)
+        }),
+        Value::Array(items) => items.iter().any(|item| value_has_any(item, fields)),
+        _ => false,
+    }
+}
+
+fn meaningful(value: &Value) -> bool {
+    match value {
+        Value::Null => false,
+        Value::String(value) => !value.is_empty(),
+        Value::Array(values) => !values.is_empty(),
+        Value::Object(values) => !values.is_empty(),
+        Value::Bool(_) | Value::Number(_) => true,
+    }
 }
 
 fn parse_metadata(
