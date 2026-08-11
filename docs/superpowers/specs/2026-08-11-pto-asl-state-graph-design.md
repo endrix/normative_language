@@ -180,7 +180,8 @@ The PTO-SPEC rollout publishes these families:
 | `PTO-STATE-ARCH-FAULT` | execution context | `_LastFault`, `_FaultAddress` |
 | `PTO-STATE-ARCH-MEMORY` | execution context | memory, reservation, fence, and memory-event state |
 | `PTO-STATE-ARCH-MAINTENANCE` | execution context | cache/TLB epochs, maintenance, architecture/control request state |
-| `PTO-STATE-ARCH-SYSTEM-REGISTERS` | execution context | extended system registers and current ACR |
+| `PTO-STATE-ARCH-SYSTEM-REGISTERS` | system-register addressing | `_SystemRegisters` |
+| `PTO-STATE-ARCH-EXTENDED-SYSTEM-REGISTERS` | execution context | `_ExtendedSystemRegisters`, `_CurrentACR` |
 | `PTO-STATE-ARCH-TRAP-CONTEXT` | execution context | ACR trap state and trap contexts |
 | `PTO-STATE-TILE-LOCAL` | local Tile registers | `_Tiles`, `_TileAllocationMasks` |
 | `PTO-STATE-TILE-SHARED` | local Tile registers | `_SharedTiles` |
@@ -188,7 +189,9 @@ The PTO-SPEC rollout publishes these families:
 
 The implementation must copy exact member identifiers from the owning ASL
 declarations. It must not use the abbreviated prose in this table as parser
-input.
+input. The initial catalog has twelve identities and partitions all 75 global
+ASL `var` declarations exactly once; this complete-coverage check prevents a
+new architecture-state variable from remaining outside the graph.
 
 ### 6.4 State closure contract
 
