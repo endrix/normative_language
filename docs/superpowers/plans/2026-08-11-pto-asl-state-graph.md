@@ -497,7 +497,7 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features --locked
 cargo build --workspace --release --locked
-scripts/ndf check --root tests/fixtures/markdown/project --format json
+scripts/ndf check --root tests/fixtures/cli-smoke/project --format json
 NDF_RUN_SCALE_TESTS=1 cargo test -p ndf-compiler --test scale --release --locked
 scripts/check-release-performance
 git diff --check

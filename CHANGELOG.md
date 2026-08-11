@@ -17,9 +17,15 @@ All notable changes to NDF are documented here.
   relationships for cross-project contracts.
 - Stable PTO instruction identities with indexed encoding, semantics, legality,
   fault, completion, architectural-state, and memory-ordering facets.
+- Typed PTO ASL unit provenance, synthetic decoder, and architecture-state
+  nodes with complete-project dependency, owner, member, duplicate, and cycle
+  validation through diagnostics `NDF-ASL-006` to `NDF-ASL-009`.
+- Indexed attribute queries through `ndf query`, including
+  `attributes.pto_entity=state`.
 - Deterministic PTO release impact analysis and the `ndf impact pto-release`
   command, including complete conformance/watch inventories and transitive
-  consumer impact.
+  consumer impact, state-semantic breakage, state-owner moves, and state
+  closure expansion review.
 - Cross-project diagnostics `NDF-XREF-001` through `NDF-XREF-004` and PTO
   instruction identity collision diagnostic `NDF-ASL-005`.
 

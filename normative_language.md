@@ -505,6 +505,28 @@ emitting `NDF-MIG-001`. The PTO adapter maps ASL `kind` and `level` to canonical
 kind and refinement, ASL `layer` to domain, and ASL lifecycle to canonical
 status. Adapter mappings MUST NOT change PTO-SPEC ASL authority.
 
+The PTO adapter exposes four separately typed identities without changing ASL
+semantics: ASL units are `source` nodes, architecture state families are
+`architecture` nodes, instructions are `definition` nodes, and NDF regions
+retain their mapped contract kind. An instruction is linked to its unit by
+`defined-in`; state is linked to its same-file unit by `defined-in` and the
+reciprocal `owns-state`. Consumers MUST target instruction, state, or contract
+identities, not unit provenance nodes.
+
+PTO state records use exactly this authored shape:
+
+```asl
+// PTO-STATE: {"id":"PTO-STATE-ARCH-GPR","classification":["scalar","gpr"],"scope":"pe","owner":"PTO-ARCH-PROGRAMMING-MODEL-EXECUTION-CONTEXT","members":["_PEGPRs"],"depends_on":[]}
+```
+
+`scope` is one of `pe`, `bundle`, `core`, `memory-agent`, `acr`, or `system`.
+Members MUST name same-file ASL `var` declarations and MUST belong to only one
+state family in an owner. `generated:decoders` is the sole virtual unit
+dependency and maps to `PTO-SYNTHETIC-GENERATED-DECODERS`. These records are
+index metadata; executable ASL declarations and transitions remain the only
+PTO architecture authority. The detailed authored and diagnostic contract is
+defined in [PTO ASL Adapter](docs/adapters/pto-asl.md).
+
 Every machine-facing command emits JSON schema 0.1 with `schema_version`,
 `command`, `ok`, `data`, and `diagnostics`. Agents MUST build or refresh the
 index before graph-dependent work, run `check` before committing, inspect
@@ -528,9 +550,11 @@ Deliberately small; each piece is straightforward engineering:
 | `ndf check` | Lint: dangling refs, duplicate IDs, keyword discipline, layer-consistency flags, glossary drift; runs in CI |
 | `ndf show ID` | Show one canonical indexed node |
 | `ndf trace ID` | Print refinement/dependency subtree for a clause |
+| `ndf query` | Filter indexed nodes by canonical fields and `attributes.<key>` values |
 | `ndf report coverage` | L1→verification coverage, TBD census, and open-item census |
 | `ndf report dependencies` | Resolve and report the exact compatibility tuple from `ndf.lock` |
 | `ndf diff BEFORE AFTER` | Semantic changelog between materialized baselines |
+| `ndf impact pto-release` | Classify locked PTO changes for conforming consumers |
 | `ndf export` | Export deterministic NDF JSON for review, RAG, and dashboards |
 | `ndf id allocate PREFIX` | Allocate the next local ID; merge-time duplicate checking remains authoritative |
 | `ndf fix` | Apply or check formatting-only and generated-navigation fixes |
