@@ -492,6 +492,12 @@ commit. Release and CI builds MUST resolve checked-out dependencies against
 that lock and MUST NOT fetch an unpinned branch. Local dirty overrides are
 non-release unless an explicit project policy allows them.
 
+A dependency declaration is tool-only by default. Set `graph: true` only when
+the dependency publishes an `ndf.yaml` project whose nodes are valid external
+relationship targets. The compiler still verifies the exact revision and
+cleanliness of every tool-only dependency, but it loads and validates a
+read-only external graph only for explicitly marked graph dependencies.
+
 Legacy syntax is accepted only through named adapters. The DavinciOO adapter
 maps `kind=req`, `level=must`, `layer=L1`, and `status=stable` to canonical
 `kind=requirement`, `modality=must`, `refinement=L1`, and `status=active`, while

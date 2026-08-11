@@ -489,6 +489,11 @@ The core MUST issue no more than two instructions per cycle.
 lock 校验已检出的依赖，禁止获取未锁定分支。脏的本地覆盖不是发布构建，
 除非项目策略明确允许。
 
+依赖声明默认只代表工具依赖。只有当依赖发布了 `ndf.yaml` 项目、且其节点
+可以作为有效的外部关系目标时，才设置 `graph: true`。编译器仍会校验每个
+工具依赖的精确 revision 和洁净度，但只为显式标记的图依赖加载并校验只读
+外部图。
+
 旧语法只能通过具名 adapter 接受。DavinciOO adapter 把 `kind=req`、
 `level=must`、`layer=L1`、`status=stable` 映射为规范的
 `kind=requirement`、`modality=must`、`refinement=L1`、`status=active`，
