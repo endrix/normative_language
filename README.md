@@ -51,6 +51,34 @@ modified. The report includes direct and transitively related consumers in a
 deterministic order so CI and release tooling can compare its JSON byte for
 byte.
 
+### Cross-project conformance
+
+Declare an external graph only when document relationships must resolve into
+that dependency:
+
+```yaml
+dependencies:
+  pto-spec:
+    path: deps/pto-spec
+    graph: true
+```
+
+The matching `ndf.lock` entry must name the dependency project and its full
+40-character Git commit. NDF verifies that the checkout is exact and clean,
+loads its graph read-only, and keeps its nodes out of the consumer index.
+
+Consumer Markdown can then use a stable external URI:
+
+```markdown
+<!-- ndf: kind=requirement modality=must refinement=L1 status=active conforms-to=ndf://pto-spec/PTO-INST-TILE-TLOAD -->
+```
+
+Use `tracks=ndf://... expected=absent` when a consumer intentionally watches
+for an upstream identity that does not exist yet. `NDF-XREF-001` reports an
+invalid watch contract, `NDF-XREF-002` a missing conformance target,
+`NDF-XREF-003` an undeclared graph namespace, and `NDF-XREF-004` a watched
+identity that has appeared.
+
 ## Documentation
 
 - [English specification](normative_language.md)
@@ -61,3 +89,5 @@ byte.
 Format 0.2, canonical IR 0.1, JSON output schema 0.1, CLI spelling, and the
 plugin API are experimental. Downstream repositories consume NDF from an exact
 Git commit recorded in `ndf.lock`; CI must not fetch an unpinned branch.
+This cross-project release keeps format 0.2, canonical IR 0.1, JSON envelope
+schema 0.1, SQLite schema v1, and the plugin API version unchanged.
