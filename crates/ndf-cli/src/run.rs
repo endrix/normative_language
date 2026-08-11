@@ -11,6 +11,7 @@ use ndf_compiler::fix::{FixMode, markdown_paths, safe_fix};
 use ndf_compiler::id_allocator::allocate_id;
 use ndf_compiler::index::{BuildProvenance, NdfIndex, build_index};
 use ndf_compiler::manifest::{ProjectLock, ProjectManifest};
+use ndf_compiler::pto_impact::pto_release_impact;
 use ndf_compiler::query::trace;
 use ndf_compiler::report::{CoveragePolicy, coverage};
 use ndf_compiler::rules::{ValidationPolicy, validate_project_graph};
@@ -19,7 +20,7 @@ use ndf_core::model::{Diagnostic, DiagnosticSeverity, Graph};
 use ndf_core::version::{FORMAT_VERSION, IR_VERSION, TOOL_VERSION};
 use serde_json::{Value, json};
 
-use crate::args::{Arguments, Command, IdCommand, ReportCommand};
+use crate::args::{Arguments, Command, IdCommand, ImpactCommand, ReportCommand};
 use crate::envelope::Envelope;
 
 pub fn run(arguments: Arguments) -> Result<Envelope, CompilerError> {
@@ -115,6 +116,24 @@ pub fn run(arguments: Arguments) -> Result<Envelope, CompilerError> {
             Envelope::success("diff", semantic_diff(&before, &after)?, Vec::new())
                 .map_err(Into::into)
         }
+        Some(Command::Impact { command }) => match command {
+            ImpactCommand::PtoRelease {
+                before,
+                after,
+                consumer_index,
+                format: _,
+            } => {
+                let before = NdfIndex::open(&before)?;
+                let after = NdfIndex::open(&after)?;
+                let consumer = NdfIndex::open(&consumer_index)?;
+                Envelope::success(
+                    "impact pto-release",
+                    pto_release_impact(&before, &after, &consumer)?,
+                    Vec::new(),
+                )
+                .map_err(Into::into)
+            }
+        },
         Some(Command::Export {
             index,
             output,

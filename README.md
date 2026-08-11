@@ -27,6 +27,30 @@ workflows. `ndf-cli` is the only supported automation interface. NDF ships no
 Python package or Python bindings; downstream tools invoke the versioned JSON
 CLI from an exact Git pin.
 
+### PTO release impact
+
+Compare two immutable PTO indexes against one consumer index with:
+
+```bash
+ndf impact pto-release \
+  --before pto-before.sqlite \
+  --after pto-after.sqlite \
+  --consumer-index davincioo.sqlite \
+  --format json
+```
+
+The two PTO indexes are authoritative release snapshots. The consumer index is
+the authoritative inventory of `conforms-to` relationships and
+`expected=absent` `tracks` watches. The command only reads these three indexes;
+it does not edit sources, indexes, lock files, or dependency checkouts.
+
+The result is `compatible` when changes do not affect a consumer contract,
+`review-required` for moved or superseded targets and newly present watched
+identities, and `breaking` when a conformance target is removed or semantically
+modified. The report includes direct and transitively related consumers in a
+deterministic order so CI and release tooling can compare its JSON byte for
+byte.
+
 ## Documentation
 
 - [English specification](normative_language.md)

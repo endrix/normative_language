@@ -69,3 +69,35 @@ fn fix_check_reports_reordering_without_writing() {
     assert_eq!(std::fs::read_to_string(&path).unwrap(), original);
     assert_eq!(Path::new(&result.changed[0]), path);
 }
+
+#[test]
+fn pto_release_impact_rejects_missing_and_corrupt_indexes() {
+    let binary = assert_cmd::cargo::cargo_bin!("ndf");
+    let directory = tempfile::tempdir().unwrap();
+    let corrupt = directory.path().join("corrupt.sqlite");
+    std::fs::write(&corrupt, "not a SQLite index").unwrap();
+
+    for before in [directory.path().join("missing.sqlite"), corrupt] {
+        let output = Command::new(binary)
+            .args([
+                "impact",
+                "pto-release",
+                "--before",
+                before.to_str().unwrap(),
+                "--after",
+                before.to_str().unwrap(),
+                "--consumer-index",
+                before.to_str().unwrap(),
+                "--format",
+                "json",
+            ])
+            .current_dir(directory.path())
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        let payload: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(payload["command"], "impact pto-release");
+        assert_eq!(payload["ok"], false);
+        assert!(payload["diagnostics"][0]["message"].is_string());
+    }
+}

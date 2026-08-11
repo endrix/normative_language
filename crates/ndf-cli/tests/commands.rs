@@ -1,7 +1,11 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use ndf_compiler::index::{BuildProvenance, build_index};
+use ndf_core::identity::NodeId;
+use ndf_core::model::{Edge, Graph, LifecycleStatus, Node, NodeKind, SourceSpan};
 use serde_json::Value;
 
 fn repository() -> PathBuf {
@@ -87,6 +91,85 @@ fn write_lock(root: &Path, revision: &str) {
         ),
     )
     .unwrap();
+}
+
+fn impact_node(project: &str, local_id: &str, handler: Option<&str>) -> Node {
+    let mut attributes = BTreeMap::new();
+    if let Some(handler) = handler {
+        attributes.insert("semantic_handler".to_owned(), handler.to_owned());
+        attributes.insert(
+            "semantic_facets".to_owned(),
+            "instruction-semantics".to_owned(),
+        );
+    }
+    Node {
+        id: NodeId::new(project, local_id).unwrap(),
+        kind: NodeKind::Architecture,
+        title: local_id.to_owned(),
+        source: SourceSpan::new(format!("docs/{local_id}.md"), 1).unwrap(),
+        modality: None,
+        refinement: None,
+        domain: None,
+        status: LifecycleStatus::Active,
+        owner: None,
+        body: String::new(),
+        attributes,
+    }
+}
+
+fn impact_provenance(project: &str) -> BuildProvenance {
+    BuildProvenance {
+        project_commits: vec![(project.to_owned(), "0".repeat(40))],
+        format_version: "0.2".to_owned(),
+        ir_version: "0.1".to_owned(),
+        tool_version: "0.1.0".to_owned(),
+        normative_roots: Vec::new(),
+    }
+}
+
+fn impact_indexes(root: &Path) -> (PathBuf, PathBuf, PathBuf) {
+    let before = root.join("before.sqlite");
+    let after = root.join("after.sqlite");
+    let consumer = root.join("consumer.sqlite");
+    let target = "PTO-INST-TILE-TLOAD";
+    build_index(
+        &Graph {
+            nodes: vec![impact_node("pto-spec", target, Some("TLOAD"))],
+            ..Graph::default()
+        },
+        &before,
+        &impact_provenance("pto-spec"),
+    )
+    .unwrap();
+    build_index(
+        &Graph {
+            nodes: vec![impact_node("pto-spec", target, Some("ExecuteTileLoadV2"))],
+            ..Graph::default()
+        },
+        &after,
+        &impact_provenance("pto-spec"),
+    )
+    .unwrap();
+    let consumer_node = impact_node("davincioo", "DAV-ISA-TLOAD", None);
+    build_index(
+        &Graph {
+            edges: vec![
+                Edge::new(
+                    consumer_node.id.clone(),
+                    NodeId::new("pto-spec", target).unwrap(),
+                    "conforms-to",
+                    None,
+                )
+                .unwrap(),
+            ],
+            nodes: vec![consumer_node],
+            diagnostics: Vec::new(),
+        },
+        &consumer,
+        &impact_provenance("davincioo"),
+    )
+    .unwrap();
+    (before, after, consumer)
 }
 
 fn cross_project_fixture(root: &Path, target: &str) {
@@ -296,4 +379,31 @@ fn check_rejects_a_missing_cross_project_conformance_target() {
     assert_eq!(status, 1, "{payload}");
     assert_eq!(payload["ok"], false);
     assert_eq!(payload["diagnostics"][0]["code"], "NDF-XREF-002");
+}
+
+#[test]
+fn pto_release_impact_emits_a_deterministic_versioned_envelope() {
+    let directory = tempfile::tempdir().unwrap();
+    let (before, after, consumer) = impact_indexes(directory.path());
+    let arguments = [
+        "impact",
+        "pto-release",
+        "--before",
+        before.to_str().unwrap(),
+        "--after",
+        after.to_str().unwrap(),
+        "--consumer-index",
+        consumer.to_str().unwrap(),
+        "--format",
+        "json",
+    ];
+
+    let (first_status, first) = ndf(directory.path(), &arguments);
+    let (second_status, second) = ndf(directory.path(), &arguments);
+
+    assert_envelope(first_status, &first, "impact pto-release");
+    assert_eq!(second_status, 0);
+    assert_eq!(first, second);
+    assert_eq!(first["data"]["schema_version"], "1");
+    assert_eq!(first["data"]["compatibility"], "breaking");
 }
