@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use globset::{Glob, GlobSetBuilder};
@@ -13,6 +13,7 @@ use crate::markdown::parse_markdown;
 
 pub mod evidence;
 pub mod pto_asl;
+mod pto_graph;
 pub mod repository;
 
 pub trait Adapter: Sync {
@@ -101,6 +102,7 @@ pub fn parse_project(manifest: &ProjectManifest) -> Result<Graph, CompilerError>
     let mut graph = GraphBuilder::default();
     let mut instruction_identities: BTreeMap<NodeId, (String, String, SourceSpan)> =
         BTreeMap::new();
+    let mut pto_identities: BTreeMap<NodeId, (String, SourceSpan)> = BTreeMap::new();
     let mut synthetic_decoder_seen = false;
     for path in paths {
         let adapter = adapter_for(&path).ok_or_else(|| {
@@ -110,6 +112,7 @@ pub fn parse_project(manifest: &ProjectManifest) -> Result<Graph, CompilerError>
             ))
         })?;
         let parsed = adapter.parse(&path, manifest)?;
+        let mut rejected_pto_ids = BTreeSet::new();
         for node in parsed.nodes {
             if node.id.local_id() == "PTO-SYNTHETIC-GENERATED-DECODERS"
                 && node.attributes.get("pto_entity").map(String::as_str) == Some("synthetic-unit")
@@ -118,6 +121,31 @@ pub fn parse_project(manifest: &ProjectManifest) -> Result<Graph, CompilerError>
                     continue;
                 }
                 synthetic_decoder_seen = true;
+            }
+            if let Some(entity) = node.attributes.get("pto_entity")
+                && matches!(entity.as_str(), "unit" | "state")
+            {
+                if let Some((existing_entity, existing_source)) = pto_identities.get(&node.id) {
+                    let code = if entity == "state" || existing_entity == "state" {
+                        "NDF-ASL-008"
+                    } else {
+                        "NDF-ASL-006"
+                    };
+                    graph.add_diagnostic(Diagnostic {
+                        code: code.to_owned(),
+                        severity: DiagnosticSeverity::Error,
+                        message: format!("duplicate PTO {entity} identity: {}", node.id),
+                        primary: node.source.clone(),
+                        related: vec![existing_source.clone()],
+                        repair: Some(
+                            "Keep one canonical PTO metadata record for each identity.".to_owned(),
+                        ),
+                        subject: Some(node.id.clone()),
+                    });
+                    rejected_pto_ids.insert(node.id);
+                    continue;
+                }
+                pto_identities.insert(node.id.clone(), (entity.clone(), node.source.clone()));
             }
             if node.id.local_id().starts_with("PTO-INST-")
                 && let (Some(surface), Some(mnemonic)) = (
@@ -153,11 +181,24 @@ pub fn parse_project(manifest: &ProjectManifest) -> Result<Graph, CompilerError>
             graph.add_node(node);
         }
         for edge in parsed.edges {
-            graph.add_edge(edge);
+            if !rejected_pto_ids.contains(&edge.source) && !rejected_pto_ids.contains(&edge.target)
+            {
+                graph.add_edge(edge);
+            }
         }
         for diagnostic in parsed.diagnostics {
             graph.add_diagnostic(diagnostic);
         }
     }
-    Ok(graph.finish())
+    let graph = graph.finish();
+    let has_pto_entities = graph.nodes.iter().any(|node| {
+        node.attributes
+            .get("pto_entity")
+            .is_some_and(|entity| matches!(entity.as_str(), "unit" | "synthetic-unit" | "state"))
+    });
+    if manifest.project == "pto-spec" || has_pto_entities {
+        Ok(pto_graph::validate_pto_graph(graph))
+    } else {
+        Ok(graph)
+    }
 }
