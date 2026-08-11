@@ -407,3 +407,17 @@ fn pto_release_impact_emits_a_deterministic_versioned_envelope() {
     assert_eq!(first["data"]["schema_version"], "1");
     assert_eq!(first["data"]["compatibility"], "breaking");
 }
+
+#[test]
+fn checked_in_cli_smoke_fixture_is_self_contained() {
+    let root = repository().join("tests/fixtures/cli-smoke/project");
+    let root_argument = root.to_string_lossy();
+
+    let (status, payload) = ndf(
+        &root,
+        &["check", "--root", &root_argument, "--format", "json"],
+    );
+
+    assert_envelope(status, &payload, "check");
+    assert_eq!(payload["data"]["node_count"], 2);
+}
