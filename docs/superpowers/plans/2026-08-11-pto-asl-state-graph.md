@@ -638,6 +638,7 @@ git commit -m "build(ndf): pin PTO state graph compiler"
 - Modify: `asl/tile/model/state/local-registers.asl`
 - Modify: `asl/block/model/state/control-state.asl`
 - Modify: `asl/arch/overview/architecture.asl`
+- Modify: `asl/arch/system-registers/addressing.asl`
 - Modify: `asl/arch/features/shared-tile-state.asl`
 - Modify: `asl/arch/data-types/integer.asl`
 - Modify: `scripts/ndf.py`
@@ -651,7 +652,7 @@ git commit -m "build(ndf): pin PTO state graph compiler"
 
 **Interfaces:**
 
-- Produces the exact 11 state identities from the approved design.
+- Produces the exact 12 state identities from the audited ASL declarations.
 - Migrates `PTO-REQ-STATE-001`, `PTO-REQ-TILE-001`, `PTO-REQ-SHARED-TILE-001`, and `PTO-REQ-BUNDLE-STATE-001` into explicit NDF regions.
 - Makes `PTO-ARCH-STATE-CLOSURE-001` reference every state node.
 - Removes `PTO-ARCH-SHARED-TILE-STATE-001` and all DavinciOO-specific anchor test names.
@@ -671,6 +672,7 @@ self.assertEqual(
         "PTO-STATE-ARCH-MEMORY",
         "PTO-STATE-ARCH-MAINTENANCE",
         "PTO-STATE-ARCH-SYSTEM-REGISTERS",
+        "PTO-STATE-ARCH-EXTENDED-SYSTEM-REGISTERS",
         "PTO-STATE-ARCH-TRAP-CONTEXT",
         "PTO-STATE-TILE-LOCAL",
         "PTO-STATE-TILE-SHARED",
@@ -679,8 +681,9 @@ self.assertEqual(
 )
 ```
 
-Require every member to match a same-file ASL `var` declaration and occur in
-exactly one state family.
+Require every member to match a same-file ASL `var` declaration, occur in
+exactly one state family, and require every global ASL `var` declaration to
+belong to exactly one state family.
 
 - [ ] **Step 2: Run and verify RED**
 
@@ -713,20 +716,20 @@ class PtoState:
 Mirror the Rust validation contract exactly; do not create a second metadata
 dialect. Add state IDs to `known_ids` for NDF references.
 
-- [ ] **Step 4: Author the 11 state records beside their declarations**
+- [ ] **Step 4: Author the 12 state records beside their declarations**
 
 Use exact ASL member identifiers. `PTO-STATE-ARCH-TEMPORARY-QUEUES` has
-`scope=bundle`; split system registers from ACR trap contexts; keep local Tile
-and Shared Tile separate even though their storage variables share one owner
-file. Assign every declared member selected by the approved catalog exactly
-once.
+`scope=bundle`; split base system-register state, extended system-register
+state, and ACR trap contexts according to their ASL owner files; keep local
+Tile and Shared Tile separate even though their storage variables share one
+owner file. Assign all 75 global ASL `var` declarations exactly once.
 
 - [ ] **Step 5: Migrate requirement comments and rewrite closure**
 
 Move each of the four canonical `PTO-REQ-*` definitions into one
 `NDF-BEGIN`/`NDF-END` region at the semantic owner. Convert duplicate comment
 definitions such as those in `integer.asl` into non-owning references. Rewrite
-`PTO-ARCH-STATE-CLOSURE-001` so its body references all 11 state IDs.
+`PTO-ARCH-STATE-CLOSURE-001` so its body references all 12 state IDs.
 
 Delete the complete `PTO-ARCH-SHARED-TILE-STATE-001` region from
 `shared-tile-state.asl`; retain the ASL unit and its dependency unchanged.
@@ -739,7 +742,7 @@ python3 -m unittest tests.scripts.test_ndf tests.scripts.test_ndf_state_graph_pa
 ./scripts/check-asl-layout
 ```
 
-Expected: PASS with 788 unit, 651 instruction, one synthetic-unit, and 11 state
+Expected: PASS with 788 unit, 651 instruction, one synthetic-unit, and 12 state
 nodes at the recorded baseline.
 
 - [ ] **Step 7: Regenerate owned projections**
@@ -790,7 +793,7 @@ gh pr edit 66 --repo PTO-ISA/pto-spec \
   --body-file /tmp/pto-spec-pr66-state-graph.md
 ```
 
-The new body must name the 11 state IDs, removed Shared Tile-only anchor,
+The new body must name the 12 state IDs, removed Shared Tile-only anchor,
 compiler merge commit, unchanged ASL behavior, release-event isolation, and
 fresh verification results. Keep auto-merge disabled.
 
@@ -922,7 +925,8 @@ classification, and verification evidence. Do not enable automatic merge.
 
 - [ ] The NDF compiler branch contains no generated database or target artifact.
 - [ ] PTO-SPEC PR 66 contains no `PTO-ARCH-SHARED-TILE-STATE-001` identity.
-- [ ] PTO-SPEC reports exactly 11 state nodes and resolves every state/member/edge.
+- [ ] PTO-SPEC reports exactly 12 state nodes, covers all 75 global ASL variables,
+  and resolves every state/member/edge.
 - [ ] DavinciOO contains no conformance edge to a PTO unit node.
 - [ ] Every committed `ndf.lock` revision equals its exact clean gitlink HEAD.
 - [ ] NDF impact distinguishes state semantics, state owner moves, closure expansion, and unrelated additions.
