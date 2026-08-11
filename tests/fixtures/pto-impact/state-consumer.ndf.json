@@ -1,0 +1,10 @@
+{
+  "nodes": [
+    {"id":"ndf://davincioo/ISA-GPR-001","source":"docs/isa/gpr.md"},
+    {"id":"ndf://davincioo/ISA-STATE-001","source":"docs/isa/state.md"}
+  ],
+  "edges": [
+    {"source":"ndf://davincioo/ISA-GPR-001","type":"conforms-to","target":"ndf://pto-spec/PTO-STATE-ARCH-GPR"},
+    {"source":"ndf://davincioo/ISA-STATE-001","type":"conforms-to","target":"ndf://pto-spec/PTO-ARCH-STATE-CLOSURE-001"}
+  ]
+}

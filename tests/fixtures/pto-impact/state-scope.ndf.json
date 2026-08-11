@@ -1,0 +1,9 @@
+{
+  "nodes": [
+    {"id":"ndf://pto-spec/PTO-STATE-ARCH-GPR","source":"asl/arch/context.asl","owner":"PTO-ARCH-CONTEXT","pto_entity":"state","classification":"scalar/gpr","scope":"system","members":"_PEGPRs"},
+    {"id":"ndf://pto-spec/PTO-ARCH-STATE-CLOSURE-001","source":"asl/arch/state.asl","body":"Programmer-visible state is the referenced ASL-owned state."}
+  ],
+  "edges": [
+    {"source":"ndf://pto-spec/PTO-ARCH-STATE-CLOSURE-001","type":"references","target":"ndf://pto-spec/PTO-STATE-ARCH-GPR"}
+  ]
+}

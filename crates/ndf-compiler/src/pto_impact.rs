@@ -4,6 +4,7 @@ use serde::Serialize;
 
 use crate::CompilerError;
 use crate::index::{NdfIndex, NodeRecord};
+use ndf_core::identity::NodeId;
 
 const PROPAGATION_EDGES: &[&str] = &[
     "affects",
@@ -90,6 +91,16 @@ pub fn pto_release_impact(
         .filter(|edge| edge.edge_type == "supersedes")
         .map(|edge| edge.target)
         .collect();
+    let closure_uri = "ndf://pto-spec/PTO-ARCH-STATE-CLOSURE-001";
+    let mut closure_expansions = BTreeSet::new();
+    let mut closure_reference_changes = BTreeSet::new();
+    if before_nodes.contains_key(closure_uri) && after_nodes.contains_key(closure_uri) {
+        if closure_only_added_state_references(before, after, closure_uri)? {
+            closure_expansions.insert(closure_uri.to_owned());
+        } else if outgoing_references_changed(before, after, closure_uri)? {
+            closure_reference_changes.insert(closure_uri.to_owned());
+        }
+    }
 
     let mut changes = Vec::new();
     for uri in after_uris.difference(&before_uris) {
@@ -113,6 +124,13 @@ pub fn pto_release_impact(
             || superseded_targets.contains(uri)
         {
             Some(PtoChangeKind::Superseded)
+        } else if closure_expansions.contains(uri) || closure_reference_changes.contains(uri) {
+            Some(PtoChangeKind::Modified)
+        } else if is_pto_state(old)
+            && (state_owner_only_changed(old, new)
+                || state_owner_edge_only_changed(before, after, uri, old, new)?)
+        {
+            Some(PtoChangeKind::Moved)
         } else if !semantically_equal(old, new) {
             Some(PtoChangeKind::Modified)
         } else if old.source != new.source {
@@ -124,7 +142,11 @@ pub fn pto_release_impact(
             changes.push(PtoChange {
                 uri: uri.clone(),
                 kind,
-                facets: if kind == PtoChangeKind::Modified {
+                facets: if closure_expansions.contains(uri)
+                    || closure_reference_changes.contains(uri)
+                {
+                    vec!["architectural-state".to_owned()]
+                } else if kind == PtoChangeKind::Modified {
                     modified_facets(old, new)
                 } else {
                     merged_facets(old, new)
@@ -175,10 +197,14 @@ pub fn pto_release_impact(
             .into_iter()
             .flatten()
         {
-            let required = match change.kind {
-                PtoChangeKind::Removed | PtoChangeKind::Modified => Compatibility::Breaking,
-                PtoChangeKind::Moved | PtoChangeKind::Superseded | PtoChangeKind::Added => {
-                    Compatibility::ReviewRequired
+            let required = if closure_expansions.contains(&change.uri) {
+                Compatibility::ReviewRequired
+            } else {
+                match change.kind {
+                    PtoChangeKind::Removed | PtoChangeKind::Modified => Compatibility::Breaking,
+                    PtoChangeKind::Moved | PtoChangeKind::Superseded | PtoChangeKind::Added => {
+                        Compatibility::ReviewRequired
+                    }
                 }
             };
             compatibility = compatibility.max(required);
@@ -245,6 +271,137 @@ fn semantically_equal(left: &NodeRecord, right: &NodeRecord) -> bool {
         && left.attributes == right.attributes
 }
 
+fn is_pto_state(node: &NodeRecord) -> bool {
+    node.attributes.get("pto_entity").map(String::as_str) == Some("state")
+}
+
+fn state_semantics_equal(left: &NodeRecord, right: &NodeRecord) -> bool {
+    is_pto_state(left)
+        && is_pto_state(right)
+        && left.kind == right.kind
+        && left.status == right.status
+        && left.body == right.body
+        && ["scope", "members", "classification"]
+            .into_iter()
+            .all(|field| left.attributes.get(field) == right.attributes.get(field))
+}
+
+fn state_owner_only_changed(left: &NodeRecord, right: &NodeRecord) -> bool {
+    state_semantics_equal(left, right)
+        && left.title == right.title
+        && left.modality == right.modality
+        && left.refinement == right.refinement
+        && left.domain == right.domain
+        && left.attributes == right.attributes
+        && (left.owner != right.owner || left.source != right.source)
+}
+
+fn state_owner_edge_only_changed(
+    before: &NdfIndex,
+    after: &NdfIndex,
+    uri: &str,
+    left: &NodeRecord,
+    right: &NodeRecord,
+) -> Result<bool, CompilerError> {
+    if !semantically_equal(left, right) || left.source != right.source {
+        return Ok(false);
+    }
+    let before_edges = before.out_edges(uri, None)?;
+    let after_edges = after.out_edges(uri, None)?;
+    let before_owners = before_edges
+        .iter()
+        .filter(|edge| edge.edge_type == "defined-in")
+        .map(|edge| edge.target.as_str())
+        .collect::<BTreeSet<_>>();
+    let after_owners = after_edges
+        .iter()
+        .filter(|edge| edge.edge_type == "defined-in")
+        .map(|edge| edge.target.as_str())
+        .collect::<BTreeSet<_>>();
+    if before_owners.len() != 1 || after_owners.len() != 1 || before_owners == after_owners {
+        return Ok(false);
+    }
+    let before_non_owner = before_edges
+        .iter()
+        .filter(|edge| edge.edge_type != "defined-in")
+        .map(|edge| (edge.edge_type.as_str(), edge.target.as_str()))
+        .collect::<BTreeSet<_>>();
+    let after_non_owner = after_edges
+        .iter()
+        .filter(|edge| edge.edge_type != "defined-in")
+        .map(|edge| (edge.edge_type.as_str(), edge.target.as_str()))
+        .collect::<BTreeSet<_>>();
+    Ok(before_non_owner == after_non_owner)
+}
+
+fn closure_only_added_state_references(
+    before: &NdfIndex,
+    after: &NdfIndex,
+    uri: &str,
+) -> Result<bool, CompilerError> {
+    let (Some(before_node), Some(after_node)) = (before.get_node(uri)?, after.get_node(uri)?)
+    else {
+        return Ok(false);
+    };
+    if !semantically_equal(&before_node, &after_node) || before_node.source != after_node.source {
+        return Ok(false);
+    }
+    let before_edges = before.out_edges(uri, None)?;
+    let after_edges = after.out_edges(uri, None)?;
+    let before_non_references = before_edges
+        .iter()
+        .filter(|edge| edge.edge_type != "references")
+        .map(|edge| (edge.edge_type.as_str(), edge.target.as_str()))
+        .collect::<BTreeSet<_>>();
+    let after_non_references = after_edges
+        .iter()
+        .filter(|edge| edge.edge_type != "references")
+        .map(|edge| (edge.edge_type.as_str(), edge.target.as_str()))
+        .collect::<BTreeSet<_>>();
+    if before_non_references != after_non_references {
+        return Ok(false);
+    }
+    let before_references = before_edges
+        .iter()
+        .filter(|edge| edge.edge_type == "references")
+        .map(|edge| edge.target.as_str())
+        .collect::<BTreeSet<_>>();
+    let after_references = after_edges
+        .iter()
+        .filter(|edge| edge.edge_type == "references")
+        .map(|edge| edge.target.as_str())
+        .collect::<BTreeSet<_>>();
+    if before_references == after_references || !before_references.is_subset(&after_references) {
+        return Ok(false);
+    }
+    for target in after_references.difference(&before_references) {
+        let target = NodeId::parse(target, None)
+            .map_err(|error| CompilerError::Contract(error.to_string()))?;
+        if !target.local_id().starts_with("PTO-STATE-") {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+fn outgoing_references_changed(
+    before: &NdfIndex,
+    after: &NdfIndex,
+    uri: &str,
+) -> Result<bool, CompilerError> {
+    let before_references = before
+        .out_edges(uri, Some("references"))?
+        .into_iter()
+        .map(|edge| edge.target)
+        .collect::<BTreeSet<_>>();
+    let after_references = after
+        .out_edges(uri, Some("references"))?
+        .into_iter()
+        .map(|edge| edge.target)
+        .collect::<BTreeSet<_>>();
+    Ok(before_references != after_references)
+}
+
 fn node_facets(node: &NodeRecord) -> Vec<String> {
     node.attributes
         .get("semantic_facets")
@@ -268,6 +425,9 @@ fn merged_facets(left: &NodeRecord, right: &NodeRecord) -> Vec<String> {
 
 fn modified_facets(left: &NodeRecord, right: &NodeRecord) -> Vec<String> {
     let mut facets = BTreeSet::new();
+    if is_pto_state(left) || is_pto_state(right) {
+        facets.insert("architectural-state".to_owned());
+    }
     if left.attributes.get("semantic_handler") != right.attributes.get("semantic_handler") {
         facets.insert("instruction-semantics".to_owned());
     }

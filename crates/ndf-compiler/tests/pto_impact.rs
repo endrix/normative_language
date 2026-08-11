@@ -27,7 +27,15 @@ fn graph(value: &Value) -> Graph {
         .map(|value| {
             let id = value["id"].as_str().unwrap();
             let mut attributes = BTreeMap::new();
-            for name in ["semantic_handler", "semantic_facets", "expected"] {
+            for name in [
+                "semantic_handler",
+                "semantic_facets",
+                "expected",
+                "pto_entity",
+                "classification",
+                "scope",
+                "members",
+            ] {
                 if let Some(value) = value.get(name).and_then(Value::as_str) {
                     attributes.insert(name.to_owned(), value.to_owned());
                 }
@@ -48,7 +56,10 @@ fn graph(value: &Value) -> Graph {
                     Some("superseded") => LifecycleStatus::Superseded,
                     _ => LifecycleStatus::Active,
                 },
-                owner: None,
+                owner: value
+                    .get("owner")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
                 body: value
                     .get("body")
                     .and_then(Value::as_str)
@@ -172,4 +183,59 @@ fn unchanged_release_still_emits_complete_consumer_inventory() {
     assert_eq!(impact.absence_watches.len(), 1);
     assert!(impact.changes.is_empty());
     assert!(impact.affected_consumers.is_empty());
+}
+
+fn state_impact(after_name: &str) -> ndf_compiler::pto_impact::PtoReleaseImpact {
+    let directory = tempfile::tempdir().unwrap();
+    let before_path = index(directory.path(), "state-before.ndf.json", "pto-spec");
+    let after_path = index(directory.path(), after_name, "pto-spec");
+    let consumer_path = index(directory.path(), "state-consumer.ndf.json", "davincioo");
+    let before = NdfIndex::open(&before_path).unwrap();
+    let after = NdfIndex::open(&after_path).unwrap();
+    let consumer = NdfIndex::open(&consumer_path).unwrap();
+    pto_release_impact(&before, &after, &consumer).unwrap()
+}
+
+#[test]
+fn state_scope_and_member_changes_are_breaking() {
+    let scope_change = state_impact("state-scope.ndf.json");
+    let member_change = state_impact("state-member.ndf.json");
+
+    assert_eq!(scope_change.compatibility, Compatibility::Breaking);
+    assert_eq!(member_change.compatibility, Compatibility::Breaking);
+}
+
+#[test]
+fn state_owner_move_requires_review() {
+    let owner_move = state_impact("state-owner.ndf.json");
+
+    assert_eq!(owner_move.compatibility, Compatibility::ReviewRequired);
+    assert!(owner_move.changes.iter().any(|change| {
+        change.uri == "ndf://pto-spec/PTO-STATE-ARCH-GPR" && change.kind == PtoChangeKind::Moved
+    }));
+}
+
+#[test]
+fn state_closure_expansion_requires_review() {
+    let closure_expansion = state_impact("state-closure.ndf.json");
+
+    assert_eq!(
+        closure_expansion.compatibility,
+        Compatibility::ReviewRequired
+    );
+    assert!(closure_expansion.changes.iter().any(|change| {
+        change.uri == "ndf://pto-spec/PTO-ARCH-STATE-CLOSURE-001"
+            && change.kind == PtoChangeKind::Modified
+    }));
+}
+
+#[test]
+fn state_closure_reference_removal_is_breaking() {
+    let closure_removal = state_impact("state-closure-removal.ndf.json");
+
+    assert_eq!(closure_removal.compatibility, Compatibility::Breaking);
+    assert!(closure_removal.changes.iter().any(|change| {
+        change.uri == "ndf://pto-spec/PTO-ARCH-STATE-CLOSURE-001"
+            && change.kind == PtoChangeKind::Modified
+    }));
 }

@@ -18,6 +18,7 @@ impl Arguments {
             Some(Command::Check { .. }) => "check",
             Some(Command::Show { .. }) => "show",
             Some(Command::Trace { .. }) => "trace",
+            Some(Command::Query { .. }) => "query",
             Some(Command::Report { command }) => match command {
                 ReportCommand::Coverage { .. } => "report coverage",
                 ReportCommand::Dependencies { .. } => "report dependencies",
@@ -63,6 +64,14 @@ pub enum Command {
         edges: Vec<String>,
         #[arg(long, default_value = "graph.sqlite")]
         index: PathBuf,
+        #[arg(long, value_enum, default_value_t = JsonFormat::Json)]
+        format: JsonFormat,
+    },
+    Query {
+        #[arg(long, default_value = "graph.sqlite")]
+        index: PathBuf,
+        #[arg(long)]
+        expression: String,
         #[arg(long, value_enum, default_value_t = JsonFormat::Json)]
         format: JsonFormat,
     },

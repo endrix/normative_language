@@ -16,6 +16,7 @@ const QUERY_FIELDS: &[&str] = &[
 
 pub fn query_nodes(index: &NdfIndex, expression: &str) -> Result<Vec<NodeRecord>, CompilerError> {
     let mut filters = Vec::new();
+    let mut attribute_filters = Vec::new();
     for clause in expression.split(" and ") {
         let Some((field, value)) = clause.split_once('=') else {
             return Err(CompilerError::Contract(format!(
@@ -24,14 +25,36 @@ pub fn query_nodes(index: &NdfIndex, expression: &str) -> Result<Vec<NodeRecord>
         };
         let field = field.trim();
         let value = value.trim();
-        if !QUERY_FIELDS.contains(&field) {
+        if let Some(attribute) = field.strip_prefix("attributes.") {
+            if attribute.is_empty()
+                || !attribute.chars().all(|character| {
+                    character.is_ascii_lowercase()
+                        || character.is_ascii_digit()
+                        || matches!(character, '_' | '-')
+                })
+            {
+                return Err(CompilerError::Contract(format!(
+                    "invalid query attribute: {attribute}"
+                )));
+            }
+            attribute_filters.push((attribute, value));
+        } else if !QUERY_FIELDS.contains(&field) {
             return Err(CompilerError::Contract(format!(
                 "unsupported query field: {field}"
             )));
+        } else {
+            filters.push((field, value));
         }
-        filters.push((field, value));
     }
-    index.filtered_nodes(&filters)
+    let mut nodes = index.filtered_nodes(&filters)?;
+    nodes.retain(|node| {
+        attribute_filters.iter().all(|(key, value)| {
+            node.attributes
+                .get(*key)
+                .is_some_and(|actual| actual == value)
+        })
+    });
+    Ok(nodes)
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
