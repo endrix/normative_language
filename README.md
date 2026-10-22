@@ -89,7 +89,11 @@ connections:
 ndf diagram docs/pipeline.md --format graph
 ```
 
-`--format graph` prints the bare document for a consumer such as the
+`--group refinement` (or `domain`) puts the document's clauses into one
+container per layer or domain; the default, `none`, draws them flat. Each
+clause carries badges for its modality, its layer and a status other than
+active, and a `facts` list with its canonical fields and body for a panel to
+show. `--format graph` prints the bare document for a consumer such as the
 [Dialogram](https://github.com/endrix) `ndf-ide` shell, which parses stdout as
 is; `--format json` wraps it in the usual envelope. The command finds the
 project from the file, parses and validates it the way `check` does, and exits

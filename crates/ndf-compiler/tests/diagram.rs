@@ -2,7 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ndf_compiler::diagram::{
-    DiagramRequest, build_diagram, document_relative_path, export_payload, failure_document,
+    DiagramRequest, GroupBy, build_diagram, document_relative_path, export_payload,
+    failure_document,
 };
 use ndf_compiler::project::{find_project_root, load_project_graph};
 use serde_json::Value;
@@ -48,6 +49,7 @@ fn pipeline_document() -> ndf_compiler::diagram::GraphDocument {
         manifest: &manifest,
         graph: &graph,
         file: &root.join("docs/pipeline.md"),
+        group: GroupBy::None,
     })
     .unwrap()
 }
@@ -122,7 +124,11 @@ fn an_unresolved_external_target_is_a_blackbox_and_its_clause_is_errored() {
         clause.meta["definitionAnnotations"][0]["name"],
         "requirement"
     );
-    assert_eq!(clause.footer.as_deref(), Some("PIPE-PTO-001 · must · L1"));
+    assert_eq!(clause.footer.as_deref(), Some("PIPE-PTO-001"));
+    assert_eq!(
+        clause.meta["badges"],
+        serde_json::json!([{ "text": "MUST", "tone": "info" }, { "text": "L1", "tone": "neutral" }])
+    );
     assert!(
         document
             .diagnostics
@@ -156,6 +162,7 @@ fn a_file_that_is_not_a_document_is_refused() {
         manifest: &manifest,
         graph: &graph,
         file: &root.join("ndf.yaml"),
+        group: GroupBy::None,
     })
     .unwrap_err();
     assert!(error.to_string().contains("not an NDF document"));
@@ -208,6 +215,7 @@ fn fixture_document(name: &str) -> ndf_compiler::diagram::GraphDocument {
         manifest: &manifest,
         graph: &graph,
         file: &root.join(format!("docs/{name}.md")),
+        group: GroupBy::None,
     })
     .unwrap()
 }
@@ -319,4 +327,132 @@ fn the_options_document_draws_its_coupling_and_the_clause_that_depends_on_it() {
         .collect();
     assert_eq!(roles, ["depends-on", "couples-with"]);
     assert!(document.diagnostics.is_empty());
+}
+
+fn grouped_document(name: &str, group: GroupBy) -> ndf_compiler::diagram::GraphDocument {
+    let root = diagram_fixture_root();
+    let (manifest, graph) = load_project_graph(&root).unwrap();
+    build_diagram(&DiagramRequest {
+        project_root: &root,
+        manifest: &manifest,
+        graph: &graph,
+        file: &root.join(format!("docs/{name}.md")),
+        group,
+    })
+    .unwrap()
+}
+
+#[test]
+fn grouping_by_refinement_puts_each_clause_in_its_layer_and_leaves_foreign_nodes_at_the_root() {
+    let root = diagram_fixture_root();
+    let document = grouped_document("forwarding", GroupBy::Refinement);
+    let expected: Value = serde_json::from_str(
+        &fs::read_to_string(
+            repository().join("tests/golden/diagram-forwarding-by-refinement.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        portable(serde_json::to_value(&document).unwrap(), &root),
+        expected
+    );
+
+    let scopes: Vec<(&str, &str, usize)> = document
+        .graph
+        .subgraphs
+        .iter()
+        .map(|scope| (scope.id.as_str(), scope.label.as_str(), scope.nodes.len()))
+        .collect();
+    assert_eq!(
+        scopes,
+        [
+            ("scope:group:L0", "L0", 1),
+            ("scope:group:L1", "L1", 2),
+            ("scope:group:L3", "L3", 1)
+        ]
+    );
+    assert!(
+        document
+            .graph
+            .subgraphs
+            .iter()
+            .all(|scope| scope.kind == "group")
+    );
+    let scope_of = |id: &str| {
+        document
+            .graph
+            .nodes
+            .iter()
+            .find(|node| node.id == id)
+            .map(|node| node.scope.clone())
+            .unwrap()
+    };
+    assert_eq!(scope_of("node:scope:root:FWD-ADM-001"), "scope:group:L1");
+    assert_eq!(
+        scope_of("node:scope:root:Q-001"),
+        "scope:root",
+        "no layer, no group"
+    );
+    assert_eq!(
+        scope_of("node:scope:root:PRM-BUF-001"),
+        "scope:root",
+        "foreign clauses stay at the root"
+    );
+    assert_eq!(scope_of("node:scope:root:MISSING-001"), "scope:root");
+}
+
+#[test]
+fn grouping_by_domain_and_not_at_all() {
+    let by_domain = grouped_document("forwarding", GroupBy::Domain);
+    assert_eq!(by_domain.graph.subgraphs.len(), 1);
+    assert_eq!(by_domain.graph.subgraphs[0].label, "forwarding");
+    assert_eq!(by_domain.graph.subgraphs[0].nodes.len(), 5);
+
+    let flat = grouped_document("forwarding", GroupBy::None);
+    assert!(flat.graph.subgraphs.is_empty());
+    assert!(
+        flat.graph
+            .nodes
+            .iter()
+            .all(|node| node.scope == "scope:root")
+    );
+    assert_eq!(GroupBy::parse("refinement"), Some(GroupBy::Refinement));
+    assert_eq!(GroupBy::parse("loud"), None);
+}
+
+#[test]
+fn badges_say_the_modality_the_layer_and_a_status_that_is_not_active() {
+    let document = grouped_document("forwarding", GroupBy::None);
+    let badges = |id: &str| {
+        document
+            .graph
+            .nodes
+            .iter()
+            .find(|node| node.id == id)
+            .map(|node| node.meta["badges"].clone())
+            .unwrap()
+    };
+    assert_eq!(
+        badges("node:scope:root:FWD-ADM-002"),
+        serde_json::json!([
+            { "text": "SHOULD", "tone": "neutral" },
+            { "text": "L1", "tone": "neutral" },
+            { "text": "draft", "tone": "neutral" }
+        ])
+    );
+    assert_eq!(
+        badges("node:scope:root:Q-001"),
+        serde_json::json!([{ "text": "open", "tone": "warning" }])
+    );
+    assert_eq!(
+        badges("node:scope:root:FWD-ADM-000"),
+        serde_json::json!([{ "text": "L0", "tone": "neutral" }]),
+        "an active clause carries no status badge"
+    );
+    let options = grouped_document("options", GroupBy::None);
+    assert_eq!(
+        options.graph.nodes[0].meta["badges"][0],
+        serde_json::json!({ "text": "TBD", "tone": "warning" })
+    );
 }

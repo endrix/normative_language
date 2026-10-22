@@ -18,7 +18,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use ndf_core::identity::NodeId;
-use ndf_core::model::{Diagnostic, DiagnosticSeverity, Edge, Graph, Node, NodeKind};
+use ndf_core::model::{
+    Diagnostic, DiagnosticSeverity, Edge, Graph, LifecycleStatus, Modality, Node, NodeKind,
+};
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 
@@ -78,7 +80,7 @@ pub struct DiagramGraph {
     pub id: String,
     pub nodes: Vec<DiagramNode>,
     pub edges: Vec<DiagramEdge>,
-    pub subgraphs: Vec<Value>,
+    pub subgraphs: Vec<DiagramScope>,
     pub meta: Map<String, Value>,
 }
 
@@ -118,6 +120,29 @@ pub struct Location {
     pub line: u32,
 }
 
+/// How the clauses of a document are grouped into containers.
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+pub enum GroupBy {
+    /// A flat document: every clause at the root.
+    #[default]
+    None,
+    /// One container per refinement layer (`L0`, `L1`, ...), in order.
+    Refinement,
+    /// One container per domain.
+    Domain,
+}
+
+impl GroupBy {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "none" => Some(Self::None),
+            "refinement" => Some(Self::Refinement),
+            "domain" => Some(Self::Domain),
+            _ => None,
+        }
+    }
+}
+
 /// What a document is built from.
 pub struct DiagramRequest<'a> {
     /// The project root the graph's source paths are relative to.
@@ -126,6 +151,26 @@ pub struct DiagramRequest<'a> {
     pub graph: &'a Graph,
     /// The document file, absolute or relative to the working directory.
     pub file: &'a Path,
+    /// How the document's own clauses are grouped; clauses drawn from outside
+    /// the document stay at the root.
+    pub group: GroupBy,
+}
+
+/// A container of nodes: a scope of kind `group` the platform draws as a
+/// labelled frame around its members.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+pub struct DiagramScope {
+    pub id: String,
+    pub kind: &'static str,
+    pub label: String,
+    pub nodes: Vec<String>,
+}
+
+/// A short mark on a node's header.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+pub struct Badge {
+    pub text: String,
+    pub tone: &'static str,
 }
 
 /// The document's path as the graph records it: relative to the project
@@ -234,12 +279,36 @@ pub fn build_diagram(request: &DiagramRequest<'_>) -> Result<GraphDocument, Comp
     }
 
     let mut nodes = Vec::with_capacity(clauses.len() + foreign.len());
+    let mut scopes: BTreeMap<String, DiagramScope> = BTreeMap::new();
     for clause in &clauses {
+        let group_key = match request.group {
+            GroupBy::None => None,
+            GroupBy::Refinement => clause.refinement.clone(),
+            GroupBy::Domain => clause.domain.clone(),
+        };
+        let scope = match &group_key {
+            Some(key) => {
+                let id = format!("scope:group:{key}");
+                scopes
+                    .entry(key.clone())
+                    .or_insert_with(|| DiagramScope {
+                        id: id.clone(),
+                        kind: "group",
+                        label: key.clone(),
+                        nodes: Vec::new(),
+                    })
+                    .nodes
+                    .push(node_id(&clause.id, project));
+                id
+            }
+            None => ROOT_SCOPE.to_owned(),
+        };
         nodes.push(clause_node(
             clause,
             project,
             request.project_root,
             diagnostics_by_subject.get(&clause.id).map(Vec::as_slice),
+            scope,
         ));
     }
     for id in foreign {
@@ -291,7 +360,7 @@ pub fn build_diagram(request: &DiagramRequest<'_>) -> Result<GraphDocument, Comp
             id: format!("wf:{doc_id}"),
             nodes,
             edges: diagram_edges,
-            subgraphs: Vec::new(),
+            subgraphs: scopes.into_values().collect(),
             meta,
         },
     })
@@ -340,14 +409,47 @@ fn enum_name<T: Serialize>(value: &T) -> Option<String> {
 }
 
 fn footer(node: &Node) -> String {
-    let mut parts = vec![node.id.local_id().to_owned()];
-    if let Some(modality) = node.modality.as_ref().and_then(enum_name) {
-        parts.push(modality);
+    node.id.local_id().to_owned()
+}
+
+/// What a reader must see on the clause itself: its modality, its layer, and
+/// its status when that is anything but active. The tone is emphasis only:
+/// `must` and an unsettled `tbd` stand out, a retired or open item warns,
+/// the rest is quiet.
+fn badges(node: &Node) -> Vec<Badge> {
+    let mut badges = Vec::new();
+    if let Some(modality) = node.modality {
+        let tone = match modality {
+            Modality::Must => "info",
+            Modality::Tbd => "warning",
+            Modality::Should | Modality::May => "neutral",
+        };
+        badges.push(Badge {
+            text: enum_name(&modality).unwrap_or_default().to_uppercase(),
+            tone,
+        });
     }
     if let Some(refinement) = &node.refinement {
-        parts.push(refinement.clone());
+        badges.push(Badge {
+            text: refinement.clone(),
+            tone: "neutral",
+        });
     }
-    parts.join(" · ")
+    let status_tone = match node.status {
+        LifecycleStatus::Active => None,
+        LifecycleStatus::Draft | LifecycleStatus::Resolved => Some("neutral"),
+        LifecycleStatus::Deprecated
+        | LifecycleStatus::Superseded
+        | LifecycleStatus::Retired
+        | LifecycleStatus::Open => Some("warning"),
+    };
+    if let Some(tone) = status_tone {
+        badges.push(Badge {
+            text: enum_name(&node.status).unwrap_or_default(),
+            tone,
+        });
+    }
+    badges
 }
 
 /// The canonical fields of a node as one object, for the property panel and
@@ -459,9 +561,11 @@ fn clause_node(
     project: &str,
     project_root: &Path,
     diagnostics: Option<&[&Diagnostic]>,
+    scope: String,
 ) -> DiagramNode {
     let id = node_id(&node.id, project);
     let mut meta = Map::new();
+    meta.insert("badges".to_owned(), badge_values(node));
     meta.insert(
         "source".to_owned(),
         location_value(project_root, &node.source.path, node.source.line),
@@ -504,11 +608,15 @@ fn clause_node(
         kind: kind_name(node.kind),
         label: node.title.clone(),
         footer: Some(footer(node)),
-        scope: ROOT_SCOPE.to_owned(),
+        scope,
         ports: pins(&id),
         meta,
         id,
     }
+}
+
+fn badge_values(node: &Node) -> Value {
+    serde_json::to_value(badges(node)).unwrap_or(Value::Array(Vec::new()))
 }
 
 /// A clause outside the document: a clause of this project drawn as an
@@ -528,6 +636,7 @@ fn foreign_node(
             let location = location_value(project_root, &node.source.path, node.source.line);
             meta.insert("source".to_owned(), location.clone());
             meta.insert("referencedSource".to_owned(), location);
+            meta.insert("badges".to_owned(), badge_values(node));
             meta.insert(
                 "referencedEntityName".to_owned(),
                 Value::String(node.id.local_id().to_owned()),
@@ -733,7 +842,7 @@ pub fn export_payload(document: &GraphDocument) -> Value {
         "network": network,
         "nodes": nodes,
         "edges": edges,
-        "scopes": document.graph.subgraphs,
+        "scopes": serde_json::to_value(&document.graph.subgraphs).unwrap_or(Value::Array(Vec::new())),
         "metadata": document.graph.meta,
     })
 }

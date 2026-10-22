@@ -638,3 +638,39 @@ fn sidecar_answers_capabilities_export_and_refuses_mutations() {
     assert_eq!(responses[2]["diagnostic"]["code"], "unsupported_op");
     assert_eq!(responses[3]["diagnostic"]["code"], "parse_error");
 }
+
+#[test]
+fn diagram_groups_clauses_by_domain_on_request() {
+    let root = repository().join("tests/fixtures/diagram/project");
+    let file = root.join("docs/forwarding.md");
+
+    let (status, stdout, _) = raw(
+        &root,
+        assert_cmd::cargo::cargo_bin!("ndf"),
+        &[
+            "diagram",
+            file.to_str().unwrap(),
+            "--format",
+            "graph",
+            "--group",
+            "domain",
+        ],
+        "",
+    );
+
+    assert_eq!(status, 0);
+    let document: Value = serde_json::from_str(&stdout).unwrap();
+    let scopes = document["graph"]["subgraphs"].as_array().unwrap();
+    assert_eq!(scopes.len(), 1);
+    assert_eq!(scopes[0]["kind"], "group");
+    assert_eq!(scopes[0]["label"], "forwarding");
+    assert_eq!(scopes[0]["nodes"].as_array().unwrap().len(), 5);
+    let clause = document["graph"]["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|node| node["id"] == "node:scope:root:FWD-ADM-001")
+        .unwrap();
+    assert_eq!(clause["scope"], "scope:group:forwarding");
+    assert_eq!(clause["meta"]["badges"][0]["text"], "MUST");
+}

@@ -39,12 +39,13 @@ fn main() -> ExitCode {
     if let Some(Command::Diagram {
         file,
         format: DiagramFormat::Graph,
+        group,
     }) = &arguments.command
     {
         // The bare document on stdout: a diagram consumer parses it as is.
         // Exit 0 even for a partial document, so the consumer draws the
         // message; only a file outside every project is a failure.
-        return match run::diagram_document(file) {
+        return match run::diagram_document(file, run::group_by(*group)) {
             Ok((document, _)) => {
                 println!(
                     "{}",

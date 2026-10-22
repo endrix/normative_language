@@ -53,6 +53,20 @@
         "kind": "option",
         "label": "Admission buffer depth",
         "meta": {
+          "badges": [
+            {
+              "text": "TBD",
+              "tone": "warning"
+            },
+            {
+              "text": "L2",
+              "tone": "neutral"
+            },
+            {
+              "text": "draft",
+              "tone": "neutral"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "option"
@@ -153,13 +167,27 @@
           }
         ],
         "scope": "scope:root",
-        "type": "PRM-BUF-001 \u00b7 tbd \u00b7 L2"
+        "type": "PRM-BUF-001"
       },
       {
         "id": "node:scope:root:PRM-THR-001",
         "kind": "option",
         "label": "Concurrent threads",
         "meta": {
+          "badges": [
+            {
+              "text": "TBD",
+              "tone": "warning"
+            },
+            {
+              "text": "L2",
+              "tone": "neutral"
+            },
+            {
+              "text": "draft",
+              "tone": "neutral"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "option"
@@ -260,13 +288,23 @@
           }
         ],
         "scope": "scope:root",
-        "type": "PRM-THR-001 \u00b7 tbd \u00b7 L2"
+        "type": "PRM-THR-001"
       },
       {
         "id": "node:scope:root:FWD-ADM-001",
         "kind": "requirement",
         "label": "Frame admission",
         "meta": {
+          "badges": [
+            {
+              "text": "MUST",
+              "tone": "info"
+            },
+            {
+              "text": "L1",
+              "tone": "neutral"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "requirement"
@@ -373,7 +411,7 @@
           }
         ],
         "scope": "scope:root",
-        "type": "FWD-ADM-001 \u00b7 must \u00b7 L1"
+        "type": "FWD-ADM-001"
       }
     ],
     "subgraphs": []

@@ -12,7 +12,9 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use ndf_compiler::CompilerError;
-use ndf_compiler::diagram::{DiagramRequest, build_diagram, export_payload, failure_document};
+use ndf_compiler::diagram::{
+    DiagramRequest, GroupBy, build_diagram, export_payload, failure_document,
+};
 use ndf_compiler::project::{find_project_root, load_project_graph};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -88,7 +90,14 @@ fn handle(request: &Value) -> Value {
     let path = PathBuf::from(file);
     let revision = revision_of(&path);
     if EXPORT_ALIASES.contains(&bare) {
-        return match export(&path) {
+        // `args.group`, as a consumer's export op passes it: the same words
+        // as the CLI's `--group`, `none` when absent or unknown.
+        let group = request
+            .get("args")
+            .and_then(|args| args.get("group"))
+            .and_then(Value::as_str)
+            .unwrap_or("none");
+        return match export(&path, group) {
             Ok((document, partial, errors)) => json!({
                 "status": "ok",
                 "file": file,
@@ -118,7 +127,7 @@ type Export = (
     Vec<ndf_compiler::diagram::LoadError>,
 );
 
-fn export(file: &Path) -> Result<Export, CompilerError> {
+fn export(file: &Path, group: &str) -> Result<Export, CompilerError> {
     let root = find_project_root(file).ok_or_else(|| {
         CompilerError::Contract(format!(
             "{} is not inside an NDF project (no ndf.yaml in any parent directory)",
@@ -138,6 +147,7 @@ fn export(file: &Path) -> Result<Export, CompilerError> {
         manifest: &manifest,
         graph: &graph,
         file,
+        group: GroupBy::parse(group).unwrap_or_default(),
     })?;
     Ok((document, false, Vec::new()))
 }

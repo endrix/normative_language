@@ -20,7 +20,9 @@ use ndf_core::model::{Diagnostic, DiagnosticSeverity, Graph};
 use ndf_core::version::{FORMAT_VERSION, IR_VERSION, TOOL_VERSION};
 use serde_json::{Value, json};
 
-use crate::args::{Arguments, Command, DiagramFormat, IdCommand, ImpactCommand, ReportCommand};
+use crate::args::{
+    Arguments, Command, DiagramFormat, DiagramGroup, IdCommand, ImpactCommand, ReportCommand,
+};
 use crate::envelope::Envelope;
 
 pub fn run(arguments: Arguments) -> Result<Envelope, CompilerError> {
@@ -204,13 +206,17 @@ pub fn run(arguments: Arguments) -> Result<Envelope, CompilerError> {
             )
             .map_err(Into::into)
         }
-        Some(Command::Diagram { file, format }) => {
+        Some(Command::Diagram {
+            file,
+            format,
+            group,
+        }) => {
             debug_assert_eq!(
                 format,
                 DiagramFormat::Json,
                 "graph output is printed by main"
             );
-            let (document, ok) = diagram_document(&file)?;
+            let (document, ok) = diagram_document(&file, group_by(group))?;
             Envelope::checked("diagram", ok, document, Vec::new()).map_err(Into::into)
         }
         None => Err(CompilerError::Contract("a command is required".to_owned())),
@@ -223,7 +229,18 @@ pub fn run(arguments: Arguments) -> Result<Envelope, CompilerError> {
 /// carrying the reason, so a diagram consumer shows the message where the
 /// diagram would be. A file that is in no NDF project at all is the one hard
 /// error.
-pub fn diagram_document(file: &Path) -> Result<(GraphDocument, bool), CompilerError> {
+pub fn group_by(group: DiagramGroup) -> ndf_compiler::diagram::GroupBy {
+    match group {
+        DiagramGroup::None => ndf_compiler::diagram::GroupBy::None,
+        DiagramGroup::Refinement => ndf_compiler::diagram::GroupBy::Refinement,
+        DiagramGroup::Domain => ndf_compiler::diagram::GroupBy::Domain,
+    }
+}
+
+pub fn diagram_document(
+    file: &Path,
+    group: ndf_compiler::diagram::GroupBy,
+) -> Result<(GraphDocument, bool), CompilerError> {
     let root = ndf_compiler::project::find_project_root(file).ok_or_else(|| {
         CompilerError::Contract(format!(
             "{} is not inside an NDF project (no ndf.yaml in any parent directory)",
@@ -239,6 +256,7 @@ pub fn diagram_document(file: &Path) -> Result<(GraphDocument, bool), CompilerEr
         manifest: &manifest,
         graph: &graph,
         file,
+        group,
     };
     let document = ndf_compiler::diagram::build_diagram(&request)?;
     let clean = document

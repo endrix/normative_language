@@ -114,6 +114,10 @@ pub enum Command {
         file: PathBuf,
         #[arg(long, value_enum, default_value_t = DiagramFormat::Json)]
         format: DiagramFormat,
+        /// Group the document's clauses into containers: by refinement
+        /// layer, by domain, or not at all.
+        #[arg(long, value_enum, default_value_t = DiagramGroup::None)]
+        group: DiagramGroup,
     },
 }
 
@@ -170,6 +174,13 @@ pub enum JsonFormat {
 pub enum DiagramFormat {
     Json,
     Graph,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, ValueEnum)]
+pub enum DiagramGroup {
+    None,
+    Refinement,
+    Domain,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

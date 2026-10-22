@@ -84,6 +84,16 @@
         "kind": "requirement",
         "label": "Issue contract",
         "meta": {
+          "badges": [
+            {
+              "text": "MUST",
+              "tone": "info"
+            },
+            {
+              "text": "L1",
+              "tone": "neutral"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "requirement"
@@ -184,13 +194,23 @@
           }
         ],
         "scope": "scope:root",
-        "type": "PIPE-ISSUE-001 \u00b7 must \u00b7 L1"
+        "type": "PIPE-ISSUE-001"
       },
       {
         "id": "node:scope:root:PIPE-ISSUE-010",
         "kind": "requirement",
         "label": "Issue mechanism",
         "meta": {
+          "badges": [
+            {
+              "text": "MUST",
+              "tone": "info"
+            },
+            {
+              "text": "L2",
+              "tone": "neutral"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "requirement"
@@ -291,13 +311,23 @@
           }
         ],
         "scope": "scope:root",
-        "type": "PIPE-ISSUE-010 \u00b7 must \u00b7 L2"
+        "type": "PIPE-ISSUE-010"
       },
       {
         "id": "node:scope:root:PIPE-PTO-001",
         "kind": "requirement",
         "label": "PTO conformance",
         "meta": {
+          "badges": [
+            {
+              "text": "MUST",
+              "tone": "info"
+            },
+            {
+              "text": "L1",
+              "tone": "neutral"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "requirement"
@@ -407,13 +437,27 @@
           }
         ],
         "scope": "scope:root",
-        "type": "PIPE-PTO-001 \u00b7 must \u00b7 L1"
+        "type": "PIPE-PTO-001"
       },
       {
         "id": "node:scope:root:PIPE-PTO-EXT-001",
         "kind": "requirement",
         "label": "Prospective PTO extension",
         "meta": {
+          "badges": [
+            {
+              "text": "TBD",
+              "tone": "warning"
+            },
+            {
+              "text": "L1",
+              "tone": "neutral"
+            },
+            {
+              "text": "draft",
+              "tone": "neutral"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "requirement"
@@ -534,7 +578,7 @@
           }
         ],
         "scope": "scope:root",
-        "type": "PIPE-PTO-EXT-001 \u00b7 tbd \u00b7 L1"
+        "type": "PIPE-PTO-EXT-001"
       },
       {
         "id": "node:scope:root:pto-spec.PTO-INST-TILE-PEXT",

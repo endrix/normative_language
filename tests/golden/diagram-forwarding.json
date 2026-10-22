@@ -119,6 +119,12 @@
         "kind": "architecture",
         "label": "Forwarding intent",
         "meta": {
+          "badges": [
+            {
+              "text": "L0",
+              "tone": "neutral"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "architecture"
@@ -210,13 +216,23 @@
           }
         ],
         "scope": "scope:root",
-        "type": "FWD-ADM-000 \u00b7 L0"
+        "type": "FWD-ADM-000"
       },
       {
         "id": "node:scope:root:FWD-ADM-001",
         "kind": "requirement",
         "label": "Frame admission",
         "meta": {
+          "badges": [
+            {
+              "text": "MUST",
+              "tone": "info"
+            },
+            {
+              "text": "L1",
+              "tone": "neutral"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "requirement"
@@ -317,13 +333,27 @@
           }
         ],
         "scope": "scope:root",
-        "type": "FWD-ADM-001 \u00b7 must \u00b7 L1"
+        "type": "FWD-ADM-001"
       },
       {
         "id": "node:scope:root:FWD-ADM-002",
         "kind": "requirement",
         "label": "Admission under pressure",
         "meta": {
+          "badges": [
+            {
+              "text": "SHOULD",
+              "tone": "neutral"
+            },
+            {
+              "text": "L1",
+              "tone": "neutral"
+            },
+            {
+              "text": "draft",
+              "tone": "neutral"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "requirement"
@@ -433,13 +463,19 @@
           }
         ],
         "scope": "scope:root",
-        "type": "FWD-ADM-002 \u00b7 should \u00b7 L1"
+        "type": "FWD-ADM-002"
       },
       {
         "id": "node:scope:root:Q-001",
         "kind": "question",
         "label": "Which admission policy wins",
         "meta": {
+          "badges": [
+            {
+              "text": "open",
+              "tone": "warning"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "question"
@@ -529,6 +565,16 @@
         "kind": "verification",
         "label": "Admission conformance",
         "meta": {
+          "badges": [
+            {
+              "text": "MUST",
+              "tone": "info"
+            },
+            {
+              "text": "L3",
+              "tone": "neutral"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "verification"
@@ -629,7 +675,7 @@
           }
         ],
         "scope": "scope:root",
-        "type": "VER-ADM-001 \u00b7 must \u00b7 L3"
+        "type": "VER-ADM-001"
       },
       {
         "id": "node:scope:root:MISSING-001",
@@ -690,6 +736,20 @@
         "kind": "option",
         "label": "Admission buffer depth",
         "meta": {
+          "badges": [
+            {
+              "text": "TBD",
+              "tone": "warning"
+            },
+            {
+              "text": "L2",
+              "tone": "neutral"
+            },
+            {
+              "text": "draft",
+              "tone": "neutral"
+            }
+          ],
           "definitionAnnotations": [
             {
               "name": "option"
@@ -796,7 +856,7 @@
           }
         ],
         "scope": "scope:root",
-        "type": "PRM-BUF-001 \u00b7 tbd \u00b7 L2"
+        "type": "PRM-BUF-001"
       }
     ],
     "subgraphs": []
