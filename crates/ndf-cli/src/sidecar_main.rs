@@ -15,7 +15,7 @@ use ndf_compiler::CompilerError;
 use ndf_compiler::diagram::{
     DiagramRequest, GroupBy, build_diagram, export_payload, failure_document,
 };
-use ndf_compiler::project::{find_project_root, load_project_graph};
+use ndf_compiler::project::{find_project_root, load_project};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
@@ -90,14 +90,19 @@ fn handle(request: &Value) -> Value {
     let path = PathBuf::from(file);
     let revision = revision_of(&path);
     if EXPORT_ALIASES.contains(&bare) {
-        // `args.group`, as a consumer's export op passes it: the same words
-        // as the CLI's `--group`, `none` when absent or unknown.
-        let group = request
-            .get("args")
-            .and_then(|args| args.get("group"))
-            .and_then(Value::as_str)
-            .unwrap_or("none");
-        return match export(&path, group) {
+        // `args.group`, `args.workflow` and `args.view`, as a consumer's
+        // export op passes them: the same words as the CLI's `--group`,
+        // `--workflow` and `--view`; `none` for a group absent or unknown.
+        let argument = |name: &str| {
+            request
+                .get("args")
+                .and_then(|args| args.get(name))
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+        };
+        let group = argument("group").unwrap_or("none");
+        return match export(&path, group, argument("workflow"), argument("view")) {
             Ok((document, partial, errors)) => json!({
                 "status": "ok",
                 "file": file,
@@ -127,14 +132,19 @@ type Export = (
     Vec<ndf_compiler::diagram::LoadError>,
 );
 
-fn export(file: &Path, group: &str) -> Result<Export, CompilerError> {
+fn export(
+    file: &Path,
+    group: &str,
+    workflow: Option<&str>,
+    view: Option<&str>,
+) -> Result<Export, CompilerError> {
     let root = find_project_root(file).ok_or_else(|| {
         CompilerError::Contract(format!(
             "{} is not inside an NDF project (no ndf.yaml in any parent directory)",
             file.display()
         ))
     })?;
-    let (manifest, graph) = match load_project_graph(&root) {
+    let loaded = match load_project(&root) {
         Ok(loaded) => loaded,
         Err(error) => {
             let document = failure_document(file, error.to_string());
@@ -144,10 +154,13 @@ fn export(file: &Path, group: &str) -> Result<Export, CompilerError> {
     };
     let document = build_diagram(&DiagramRequest {
         project_root: &root,
-        manifest: &manifest,
-        graph: &graph,
+        manifest: &loaded.manifest,
+        graph: &loaded.graph,
+        dependencies: &loaded.dependencies,
         file,
         group: GroupBy::parse(group).unwrap_or_default(),
+        workflow,
+        view,
     })?;
     Ok((document, false, Vec::new()))
 }

@@ -41,6 +41,7 @@ fn dependency_graph(nodes: Vec<Node>) -> BTreeMap<String, DependencyGraph> {
         DependencyGraph {
             project_id: "pto-spec".to_owned(),
             revision: "0123456789abcdef0123456789abcdef01234567".to_owned(),
+            path: std::path::PathBuf::from("deps/pto-spec"),
             graph: Graph {
                 nodes,
                 edges: Vec::new(),

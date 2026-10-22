@@ -11,7 +11,7 @@ use ndf_compiler::fix::{FixMode, markdown_paths, safe_fix};
 use ndf_compiler::id_allocator::allocate_id;
 use ndf_compiler::index::{BuildProvenance, NdfIndex, build_index};
 use ndf_compiler::manifest::{ProjectLock, ProjectManifest};
-use ndf_compiler::project::load_project_graph;
+use ndf_compiler::project::{load_project, load_project_graph};
 use ndf_compiler::pto_impact::pto_release_impact;
 use ndf_compiler::query::{query_nodes, trace};
 use ndf_compiler::report::{CoveragePolicy, coverage};
@@ -210,13 +210,16 @@ pub fn run(arguments: Arguments) -> Result<Envelope, CompilerError> {
             file,
             format,
             group,
+            workflow,
+            view,
         }) => {
             debug_assert_eq!(
                 format,
                 DiagramFormat::Json,
                 "graph output is printed by main"
             );
-            let (document, ok) = diagram_document(&file, group_by(group))?;
+            let (document, ok) =
+                diagram_document(&file, group_by(group), workflow.as_deref(), view.as_deref())?;
             Envelope::checked("diagram", ok, document, Vec::new()).map_err(Into::into)
         }
         None => Err(CompilerError::Contract("a command is required".to_owned())),
@@ -240,6 +243,8 @@ pub fn group_by(group: DiagramGroup) -> ndf_compiler::diagram::GroupBy {
 pub fn diagram_document(
     file: &Path,
     group: ndf_compiler::diagram::GroupBy,
+    workflow: Option<&str>,
+    view: Option<&str>,
 ) -> Result<(GraphDocument, bool), CompilerError> {
     let root = ndf_compiler::project::find_project_root(file).ok_or_else(|| {
         CompilerError::Contract(format!(
@@ -247,16 +252,19 @@ pub fn diagram_document(
             file.display()
         ))
     })?;
-    let (manifest, graph) = match load_project_graph(&root) {
+    let loaded = match load_project(&root) {
         Ok(loaded) => loaded,
         Err(error) => return Ok((failure_document(file, error.to_string()), false)),
     };
     let request = ndf_compiler::diagram::DiagramRequest {
         project_root: &root,
-        manifest: &manifest,
-        graph: &graph,
+        manifest: &loaded.manifest,
+        graph: &loaded.graph,
+        dependencies: &loaded.dependencies,
         file,
         group,
+        workflow,
+        view,
     };
     let document = ndf_compiler::diagram::build_diagram(&request)?;
     let clean = document

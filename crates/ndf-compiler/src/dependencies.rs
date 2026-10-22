@@ -22,6 +22,8 @@ pub struct ResolvedProject {
 pub struct DependencyGraph {
     pub project_id: String,
     pub revision: String,
+    /// The locked checkout the graph was parsed from, canonical.
+    pub path: PathBuf,
     pub graph: Graph,
 }
 
@@ -72,6 +74,7 @@ pub fn load_dependency_graphs(
             DependencyGraph {
                 project_id: dependency.project_id,
                 revision: dependency.revision,
+                path: dependency.path,
                 graph,
             },
         );

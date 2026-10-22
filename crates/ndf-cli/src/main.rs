@@ -40,12 +40,20 @@ fn main() -> ExitCode {
         file,
         format: DiagramFormat::Graph,
         group,
+        workflow,
+        view,
     }) = &arguments.command
     {
         // The bare document on stdout: a diagram consumer parses it as is.
         // Exit 0 even for a partial document, so the consumer draws the
-        // message; only a file outside every project is a failure.
-        return match run::diagram_document(file, run::group_by(*group)) {
+        // message; only a file outside every project, or a unit the project
+        // does not have, is a failure.
+        return match run::diagram_document(
+            file,
+            run::group_by(*group),
+            workflow.as_deref(),
+            view.as_deref(),
+        ) {
             Ok((document, _)) => {
                 println!(
                     "{}",

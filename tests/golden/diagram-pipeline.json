@@ -76,6 +76,20 @@
       },
       "project": "fixture",
       "title": "Pipeline",
+      "views": [
+        {
+          "id": "refines",
+          "label": "Refinement trace"
+        },
+        {
+          "id": "verifies",
+          "label": "Verification"
+        },
+        {
+          "id": "depends-on",
+          "label": "Dependencies"
+        }
+      ],
       "workflow": "DOC-FIXTURE-PIPELINE"
     },
     "nodes": [
@@ -179,7 +193,21 @@
           "source": {
             "file": "<root>/docs/pipeline.md",
             "line": 14
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -296,7 +324,21 @@
           "source": {
             "file": "<root>/docs/pipeline.md",
             "line": 19
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -422,7 +464,21 @@
           "source": {
             "file": "<root>/docs/pipeline.md",
             "line": 24
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -563,7 +619,21 @@
           "source": {
             "file": "<root>/docs/pipeline.md",
             "line": 29
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -690,6 +760,23 @@
       }
     ],
     "subgraphs": []
+  },
+  "hierarchy": {
+    "children": [
+      {
+        "children": [],
+        "nodeCount": 4,
+        "path": [
+          "DOC-FIXTURE-PIPELINE"
+        ],
+        "sourceUri": "file://<root>/docs/pipeline.md",
+        "workflowName": "DOC-FIXTURE-PIPELINE"
+      }
+    ],
+    "nodeCount": 1,
+    "path": [],
+    "sourceUri": "file://<root>/ndf.yaml",
+    "workflowName": "fixture"
   },
   "version": "1.0"
 }

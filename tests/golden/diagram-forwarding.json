@@ -111,6 +111,20 @@
       },
       "project": "diagram",
       "title": "Forwarding",
+      "views": [
+        {
+          "id": "refines",
+          "label": "Refinement trace"
+        },
+        {
+          "id": "verifies",
+          "label": "Verification"
+        },
+        {
+          "id": "depends-on",
+          "label": "Dependencies"
+        }
+      ],
       "workflow": "DOC-FORWARDING"
     },
     "nodes": [
@@ -201,7 +215,21 @@
           "source": {
             "file": "<root>/docs/forwarding.md",
             "line": 10
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -318,7 +346,21 @@
           "source": {
             "file": "<root>/docs/forwarding.md",
             "line": 16
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -448,7 +490,21 @@
           "source": {
             "file": "<root>/docs/forwarding.md",
             "line": 22
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -543,7 +599,21 @@
           "source": {
             "file": "<root>/docs/forwarding.md",
             "line": 27
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -660,7 +730,21 @@
           "source": {
             "file": "<root>/docs/forwarding.md",
             "line": 32
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -819,11 +903,16 @@
               "value": "forwarding"
             },
             {
+              "label": "Document",
+              "value": "DOC-OPTIONS"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "The admission buffer depth is a design-space parameter: default 64 frames,\nexplored over 32 to 128."
             }
           ],
+          "instanceName": "DOC-OPTIONS",
           "ndf": {
             "domain": "forwarding",
             "id": "ndf://diagram/PRM-BUF-001",
@@ -833,7 +922,8 @@
             "refinement": "L2",
             "status": "draft"
           },
-          "referencedEntityName": "PRM-BUF-001",
+          "networkInstance": true,
+          "referencedEntityName": "DOC-OPTIONS",
           "referencedSource": {
             "file": "<root>/docs/options.md",
             "line": 10
@@ -841,7 +931,21 @@
           "source": {
             "file": "<root>/docs/options.md",
             "line": 10
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -860,6 +964,32 @@
       }
     ],
     "subgraphs": []
+  },
+  "hierarchy": {
+    "children": [
+      {
+        "children": [],
+        "nodeCount": 5,
+        "path": [
+          "DOC-FORWARDING"
+        ],
+        "sourceUri": "file://<root>/docs/forwarding.md",
+        "workflowName": "DOC-FORWARDING"
+      },
+      {
+        "children": [],
+        "nodeCount": 2,
+        "path": [
+          "DOC-OPTIONS"
+        ],
+        "sourceUri": "file://<root>/docs/options.md",
+        "workflowName": "DOC-OPTIONS"
+      }
+    ],
+    "nodeCount": 2,
+    "path": [],
+    "sourceUri": "file://<root>/ndf.yaml",
+    "workflowName": "diagram"
   },
   "version": "1.0"
 }

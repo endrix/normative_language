@@ -118,6 +118,15 @@ pub enum Command {
         /// layer, by domain, or not at all.
         #[arg(long, value_enum, default_value_t = DiagramGroup::None)]
         group: DiagramGroup,
+        /// The unit to draw, by name: the project (its id), a document (its
+        /// id or title) or a clause (its id). Absent, the document at FILE,
+        /// or the project overview when FILE is its ndf.yaml.
+        #[arg(long)]
+        workflow: Option<String>,
+        /// A trace of the unit along one edge type (refines, verifies,
+        /// depends-on) instead of its structure.
+        #[arg(long)]
+        view: Option<String>,
     },
 }
 

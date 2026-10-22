@@ -558,7 +558,7 @@ fn diagram_refuses_a_file_outside_every_project_with_exit_two() {
 }
 
 #[test]
-fn diagram_resolves_a_locked_cross_project_target_as_a_blackbox() {
+fn diagram_resolves_a_locked_cross_project_target_into_its_checkout() {
     let directory = tempfile::tempdir().unwrap();
     graph_command_fixture(directory.path());
     let file = directory.path().join("docs/pipeline.md");
@@ -573,12 +573,42 @@ fn diagram_resolves_a_locked_cross_project_target_as_a_blackbox() {
     assert_eq!(status, 0);
     let document: Value = serde_json::from_str(&stdout).unwrap();
     let nodes = document["graph"]["nodes"].as_array().unwrap();
-    let blackbox = nodes
+    // The target is a clause of the dependency's graph: drawn as the clause
+    // it is, external to the document, with its source in the locked
+    // checkout and a drill-down into the file that holds it.
+    let target = nodes
         .iter()
         .find(|node| node["id"] == "node:scope:root:pto-spec.PTO-INST-TILE-TLOAD")
         .unwrap();
-    assert_eq!(blackbox["kind"], "blackbox");
-    assert_eq!(blackbox["meta"]["external"], true);
+    assert_ne!(target["kind"], "blackbox");
+    assert_eq!(target["meta"]["external"], true);
+    assert_eq!(target["meta"]["networkInstance"], true);
+    assert_eq!(target["meta"]["referencedEntityName"], "contracts");
+    let checkout = directory
+        .path()
+        .canonicalize()
+        .unwrap()
+        .join("deps/pto-spec/asl/contracts.asl");
+    assert_eq!(
+        target["meta"]["referencedSource"]["file"],
+        checkout.to_string_lossy().as_ref()
+    );
+    assert!(
+        target["meta"]["badges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|badge| badge["text"] == "pto-spec"),
+        "{}",
+        target["meta"]["badges"]
+    );
+    assert!(
+        target["meta"]["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|fact| fact["label"] == "Project" && fact["value"] == "pto-spec")
+    );
     let conforming = nodes
         .iter()
         .find(|node| node["id"] == "node:scope:root:PIPE-PTO-001")
@@ -588,6 +618,36 @@ fn diagram_resolves_a_locked_cross_project_target_as_a_blackbox() {
         "{conforming}"
     );
     assert_eq!(document["graph"]["edges"].as_array().unwrap().len(), 3);
+
+    // The project overview draws the dependency as one blackbox with its
+    // checkout, and the edge into it added up.
+    let manifest = directory.path().join("ndf.yaml");
+    let (status, stdout, _) = raw(
+        directory.path(),
+        assert_cmd::cargo::cargo_bin!("ndf"),
+        &["diagram", manifest.to_str().unwrap(), "--format", "graph"],
+        "",
+    );
+    assert_eq!(status, 0);
+    let overview: Value = serde_json::from_str(&stdout).unwrap();
+    let project = overview["graph"]["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|node| node["id"] == "node:scope:root:pto-spec")
+        .unwrap();
+    assert_eq!(project["kind"], "blackbox");
+    assert!(
+        project["meta"]["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|fact| fact["label"] == "Checkout")
+    );
+    let edges = overview["graph"]["edges"].as_array().unwrap();
+    assert!(edges.iter().any(|edge| {
+        edge["to"] == "port:node:scope:root:pto-spec:in" && edge["meta"]["role"] == "conforms-to"
+    }));
 }
 
 #[test]
@@ -673,4 +733,103 @@ fn diagram_groups_clauses_by_domain_on_request() {
         .unwrap();
     assert_eq!(clause["scope"], "scope:group:forwarding");
     assert_eq!(clause["meta"]["badges"][0]["text"], "MUST");
+}
+
+#[test]
+fn diagram_draws_a_named_unit_and_its_trace_view() {
+    let root = repository().join("tests/fixtures/diagram/project");
+    let file = root.join("docs/forwarding.md");
+    let (status, stdout, _) = raw(
+        &root,
+        assert_cmd::cargo::cargo_bin!("ndf"),
+        &[
+            "diagram",
+            file.to_str().unwrap(),
+            "--format",
+            "graph",
+            "--workflow",
+            "FWD-ADM-001",
+            "--view",
+            "refines",
+            "--group",
+            "refinement",
+        ],
+        "",
+    );
+    assert_eq!(status, 0);
+    let document: Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(document["graph"]["id"], "wf:FWD-ADM-001");
+    assert_eq!(document["graph"]["meta"]["view"], "refines");
+    let ids: Vec<&str> = document["graph"]["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|node| node["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        ids,
+        ["node:scope:root:FWD-ADM-001", "node:scope:root:FWD-ADM-000"]
+    );
+    // Grouping applies to a trace too.
+    let labels: Vec<&str> = document["graph"]["subgraphs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|scope| scope["label"].as_str().unwrap())
+        .collect();
+    assert_eq!(labels, ["L0", "L1"]);
+    // The outline rides on every unit.
+    assert_eq!(document["hierarchy"]["workflowName"], "diagram");
+    assert_eq!(
+        document["hierarchy"]["children"].as_array().unwrap().len(),
+        2
+    );
+
+    // The sidecar takes the same words as arguments of the export op.
+    let request = serde_json::json!({
+        "file": file.to_str().unwrap(),
+        "op": "ndf.exportGraph",
+        "args": { "workflow": "DOC-FORWARDING", "view": "depends-on" }
+    });
+    let (status, stdout, _) = raw(
+        &root,
+        assert_cmd::cargo::cargo_bin!("ndf-sidecar"),
+        &[],
+        &format!("{request}\n"),
+    );
+    assert_eq!(status, 0);
+    let response: Value = serde_json::from_str(stdout.trim()).unwrap();
+    assert_eq!(response["status"], "ok");
+    assert_eq!(response["diagnostic"]["graph"]["network"], "DOC-FORWARDING");
+    assert_eq!(
+        response["diagnostic"]["graph"]["metadata"]["view"],
+        "depends-on"
+    );
+    assert!(
+        response["diagnostic"]["graph"]["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|node| node["id"] == "node:scope:root:PRM-BUF-001")
+    );
+
+    // A unit the project does not have is the one hard failure.
+    let (status, _, stderr) = raw(
+        &root,
+        assert_cmd::cargo::cargo_bin!("ndf"),
+        &[
+            "diagram",
+            file.to_str().unwrap(),
+            "--format",
+            "graph",
+            "--workflow",
+            "NOPE",
+        ],
+        "",
+    );
+    assert_eq!(status, 2);
+    assert!(
+        stderr.contains("no document or clause named NOPE"),
+        "{stderr}"
+    );
 }

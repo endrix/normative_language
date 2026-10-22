@@ -556,7 +556,7 @@ Deliberately small; each piece is straightforward engineering:
 | `ndf diff BEFORE AFTER` | Semantic changelog between materialized baselines |
 | `ndf impact pto-release` | Classify locked PTO changes for conforming consumers |
 | `ndf export` | Export deterministic NDF JSON for review, RAG, and dashboards |
-| `ndf diagram FILE` | Emit one document as a diagram graph document for an IDE consumer |
+| `ndf diagram FILE` | Emit one unit as a diagram graph document for an IDE consumer: a document, the project (`ndf.yaml`), or a named unit (`--workflow`) and its trace along one edge type (`--view`) |
 | `ndf id allocate PREFIX` | Allocate the next local ID; merge-time duplicate checking remains authoritative |
 | `ndf fix` | Apply or check formatting-only and generated-navigation fixes |
 

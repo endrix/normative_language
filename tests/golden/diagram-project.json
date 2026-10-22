@@ -1,0 +1,367 @@
+{
+  "diagnostics": [
+    {
+      "code": "NDF-EDGE-001",
+      "message": "mandatory edge depends-on has a dangling endpoint. Resolve both endpoints or remove the mandatory edge.",
+      "severity": "error",
+      "startColumn": 0,
+      "startLine": 22,
+      "uri": "<root>/docs/forwarding.md"
+    }
+  ],
+  "graph": {
+    "edges": [
+      {
+        "from": "port:node:scope:root:DOC-FORWARDING:out",
+        "id": "edge:port:node:scope:root:DOC-FORWARDING:out->port:node:scope:root:DOC-OPTIONS:in:depends-on",
+        "meta": {
+          "count": 1,
+          "label": "depends-on",
+          "role": "depends-on"
+        },
+        "scope": "scope:root",
+        "source": {
+          "file": "<root>/docs/forwarding.md",
+          "line": 17
+        },
+        "to": "port:node:scope:root:DOC-OPTIONS:in"
+      }
+    ],
+    "id": "wf:diagram",
+    "meta": {
+      "facts": [
+        {
+          "label": "Project",
+          "value": "diagram"
+        },
+        {
+          "label": "Documents",
+          "value": "2"
+        },
+        {
+          "label": "Clauses",
+          "value": "7"
+        },
+        {
+          "label": "Edges",
+          "value": "7"
+        }
+      ],
+      "file": "<root>/ndf.yaml",
+      "project": "diagram",
+      "title": "diagram",
+      "views": [
+        {
+          "id": "refines",
+          "label": "Refinement trace"
+        },
+        {
+          "id": "verifies",
+          "label": "Verification"
+        },
+        {
+          "id": "depends-on",
+          "label": "Dependencies"
+        }
+      ],
+      "workflow": "diagram"
+    },
+    "nodes": [
+      {
+        "id": "node:scope:root:DOC-FORWARDING",
+        "kind": "document",
+        "label": "DOC-FORWARDING",
+        "meta": {
+          "badges": [
+            {
+              "text": "5 clauses",
+              "tone": "neutral"
+            }
+          ],
+          "definitionAnnotations": [
+            {
+              "name": "document"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "DOC-FORWARDING"
+                },
+                {
+                  "name": "title",
+                  "value": "Forwarding"
+                },
+                {
+                  "name": "file",
+                  "value": "docs/forwarding.md"
+                },
+                {
+                  "name": "clauses",
+                  "value": "5"
+                },
+                {
+                  "name": "status",
+                  "value": "active"
+                },
+                {
+                  "name": "owner",
+                  "value": "forwarding"
+                },
+                {
+                  "name": "authority",
+                  "value": "normative"
+                }
+              ],
+              "name": "ndf"
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NDF-EDGE-001",
+              "message": "mandatory edge depends-on has a dangling endpoint",
+              "severity": "error"
+            }
+          ],
+          "errorMessage": "NDF-EDGE-001: mandatory edge depends-on has a dangling endpoint",
+          "facts": [
+            {
+              "label": "ID",
+              "value": "DOC-FORWARDING"
+            },
+            {
+              "label": "Title",
+              "value": "Forwarding"
+            },
+            {
+              "label": "File",
+              "value": "docs/forwarding.md"
+            },
+            {
+              "label": "Clauses",
+              "value": "5"
+            },
+            {
+              "label": "Status",
+              "value": "active"
+            },
+            {
+              "label": "Owner",
+              "value": "forwarding"
+            },
+            {
+              "label": "authority",
+              "value": "normative"
+            }
+          ],
+          "instanceName": "DOC-FORWARDING",
+          "isErrored": true,
+          "ndf": {
+            "attributes": {
+              "authority": "normative"
+            },
+            "id": "ndf://diagram/DOC-FORWARDING",
+            "kind": "document",
+            "owner": "forwarding",
+            "status": "active"
+          },
+          "networkInstance": true,
+          "referencedEntityName": "DOC-FORWARDING",
+          "referencedSource": {
+            "file": "<root>/docs/forwarding.md",
+            "line": 1
+          },
+          "source": {
+            "file": "<root>/docs/forwarding.md",
+            "line": 1
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:DOC-FORWARDING:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:DOC-FORWARDING:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "Forwarding"
+      },
+      {
+        "id": "node:scope:root:DOC-OPTIONS",
+        "kind": "document",
+        "label": "DOC-OPTIONS",
+        "meta": {
+          "badges": [
+            {
+              "text": "2 clauses",
+              "tone": "neutral"
+            }
+          ],
+          "definitionAnnotations": [
+            {
+              "name": "document"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "DOC-OPTIONS"
+                },
+                {
+                  "name": "title",
+                  "value": "Design options"
+                },
+                {
+                  "name": "file",
+                  "value": "docs/options.md"
+                },
+                {
+                  "name": "clauses",
+                  "value": "2"
+                },
+                {
+                  "name": "status",
+                  "value": "active"
+                },
+                {
+                  "name": "owner",
+                  "value": "forwarding"
+                },
+                {
+                  "name": "authority",
+                  "value": "normative"
+                }
+              ],
+              "name": "ndf"
+            }
+          ],
+          "facts": [
+            {
+              "label": "ID",
+              "value": "DOC-OPTIONS"
+            },
+            {
+              "label": "Title",
+              "value": "Design options"
+            },
+            {
+              "label": "File",
+              "value": "docs/options.md"
+            },
+            {
+              "label": "Clauses",
+              "value": "2"
+            },
+            {
+              "label": "Status",
+              "value": "active"
+            },
+            {
+              "label": "Owner",
+              "value": "forwarding"
+            },
+            {
+              "label": "authority",
+              "value": "normative"
+            }
+          ],
+          "instanceName": "DOC-OPTIONS",
+          "ndf": {
+            "attributes": {
+              "authority": "normative"
+            },
+            "id": "ndf://diagram/DOC-OPTIONS",
+            "kind": "document",
+            "owner": "forwarding",
+            "status": "active"
+          },
+          "networkInstance": true,
+          "referencedEntityName": "DOC-OPTIONS",
+          "referencedSource": {
+            "file": "<root>/docs/options.md",
+            "line": 1
+          },
+          "source": {
+            "file": "<root>/docs/options.md",
+            "line": 1
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:DOC-OPTIONS:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:DOC-OPTIONS:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "Design options"
+      }
+    ],
+    "subgraphs": []
+  },
+  "hierarchy": {
+    "children": [
+      {
+        "children": [],
+        "nodeCount": 5,
+        "path": [
+          "DOC-FORWARDING"
+        ],
+        "sourceUri": "file://<root>/docs/forwarding.md",
+        "workflowName": "DOC-FORWARDING"
+      },
+      {
+        "children": [],
+        "nodeCount": 2,
+        "path": [
+          "DOC-OPTIONS"
+        ],
+        "sourceUri": "file://<root>/docs/options.md",
+        "workflowName": "DOC-OPTIONS"
+      }
+    ],
+    "nodeCount": 2,
+    "path": [],
+    "sourceUri": "file://<root>/ndf.yaml",
+    "workflowName": "diagram"
+  },
+  "version": "1.0"
+}

@@ -81,26 +81,45 @@ identity that has appeared.
 
 ### Diagrams
 
-`ndf diagram` emits one document as the graph document a diagram consumer
-reads, with the document's clauses as nodes and its typed edges as
-connections:
+`ndf diagram` emits one unit of a project as the graph document a diagram
+consumer reads. The unit is a document by default, with its clauses as nodes
+and its typed edges as connections:
 
 ```bash
 ndf diagram docs/pipeline.md --format graph
+ndf diagram ndf.yaml --format graph                       # the project: one node per document
+ndf diagram docs/pipeline.md --format graph --workflow PIPE-ISSUE-001 --view refines
 ```
 
-`--group refinement` (or `domain`) puts the document's clauses into one
-container per layer or domain; the default, `none`, draws them flat. Each
-clause carries badges for its modality, its layer and a status other than
-active, and a `facts` list with its canonical fields and body for a panel to
-show. `--format graph` prints the bare document for a consumer such as the
+`--group refinement` (or `domain`) puts the unit's clauses into one container
+per layer or domain; the default, `none`, draws them flat. Each clause carries
+badges for its modality, its layer and a status other than active, and a
+`facts` list with its canonical fields and body for a panel to show. A clause
+the document refers to but does not own is drawn once at its edge, external,
+and drills into the document that holds it; a target in a locked graph
+dependency is drawn as the clause it is, with its source in that checkout,
+and a target nothing resolves is a blackbox.
+
+`--workflow NAME` names the unit instead: the project (its id), a document
+(its id or title) or a clause (its id). `--view TYPE` draws a trace of the
+unit along one edge type (`refines`, `verifies`, `depends-on`) through the
+whole project, both ways, instead of its structure. The project overview,
+`ndf diagram ndf.yaml`, draws one node per document with the edges between
+documents added up by type. Every document carries the outline of the project
+(`hierarchy`: the project at the root, one child per document) and the views
+it offers (`meta.views`), so a consumer lists the documents and offers the
+traces without a second export.
+
+`--format graph` prints the bare document for a consumer such as the
 [Dialogram](https://github.com/endrix) `ndf-ide` shell, which parses stdout as
 is; `--format json` wraps it in the usual envelope. The command finds the
 project from the file, parses and validates it the way `check` does, and exits
-with status 2 only when the file is in no NDF project at all. A project that
-fails to load yields a partial document carrying the reason. `ndf-sidecar`,
-built beside `ndf`, speaks the sidecar protocol a diagram consumer expects:
-`getCapabilities` and `exportGraph`, and no mutation.
+with status 2 only when the file is in no NDF project at all or names a unit
+the project does not have. A project that fails to load yields a partial
+document carrying the reason; a project that declares no dependencies needs no
+`ndf.lock` to be drawn. `ndf-sidecar`, built beside `ndf`, speaks the sidecar
+protocol a diagram consumer expects: `getCapabilities` and `exportGraph` (with
+`args.group`, `args.workflow` and `args.view`), and no mutation.
 
 ## Documentation
 

@@ -45,6 +45,20 @@
       },
       "project": "diagram",
       "title": "Design options",
+      "views": [
+        {
+          "id": "refines",
+          "label": "Refinement trace"
+        },
+        {
+          "id": "verifies",
+          "label": "Verification"
+        },
+        {
+          "id": "depends-on",
+          "label": "Dependencies"
+        }
+      ],
       "workflow": "DOC-OPTIONS"
     },
     "nodes": [
@@ -152,7 +166,21 @@
           "source": {
             "file": "<root>/docs/options.md",
             "line": 10
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -273,7 +301,21 @@
           "source": {
             "file": "<root>/docs/options.md",
             "line": 16
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -374,11 +416,16 @@
               "value": "forwarding"
             },
             {
+              "label": "Document",
+              "value": "DOC-FORWARDING"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "A frame MUST be admitted only if it passes FCS validation ([[MISSING-001]])\nand fits the admission buffer."
             }
           ],
+          "instanceName": "DOC-FORWARDING",
           "ndf": {
             "domain": "forwarding",
             "id": "ndf://diagram/FWD-ADM-001",
@@ -388,7 +435,8 @@
             "refinement": "L1",
             "status": "active"
           },
-          "referencedEntityName": "FWD-ADM-001",
+          "networkInstance": true,
+          "referencedEntityName": "DOC-FORWARDING",
           "referencedSource": {
             "file": "<root>/docs/forwarding.md",
             "line": 16
@@ -396,7 +444,21 @@
           "source": {
             "file": "<root>/docs/forwarding.md",
             "line": 16
-          }
+          },
+          "views": [
+            {
+              "id": "refines",
+              "label": "Refinement trace"
+            },
+            {
+              "id": "verifies",
+              "label": "Verification"
+            },
+            {
+              "id": "depends-on",
+              "label": "Dependencies"
+            }
+          ]
         },
         "ports": [
           {
@@ -415,6 +477,32 @@
       }
     ],
     "subgraphs": []
+  },
+  "hierarchy": {
+    "children": [
+      {
+        "children": [],
+        "nodeCount": 5,
+        "path": [
+          "DOC-FORWARDING"
+        ],
+        "sourceUri": "file://<root>/docs/forwarding.md",
+        "workflowName": "DOC-FORWARDING"
+      },
+      {
+        "children": [],
+        "nodeCount": 2,
+        "path": [
+          "DOC-OPTIONS"
+        ],
+        "sourceUri": "file://<root>/docs/options.md",
+        "workflowName": "DOC-OPTIONS"
+      }
+    ],
+    "nodeCount": 2,
+    "path": [],
+    "sourceUri": "file://<root>/ndf.yaml",
+    "workflowName": "diagram"
   },
   "version": "1.0"
 }

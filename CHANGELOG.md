@@ -12,6 +12,14 @@ All notable changes to NDF are documented here.
   badges for modality, layer and a non-active status and a facts list per
   clause; the `ndf-sidecar` binary answers a diagram platform's
   `getCapabilities` and `exportGraph` operations over the sidecar protocol.
+  `--workflow NAME` names the unit (the project, a document by id or title, a
+  clause by id) and `--view TYPE` draws its trace along one edge type through
+  the whole project; `ndf diagram ndf.yaml` is the project overview, one node
+  per document with the edges between documents added up. Every document
+  carries the project outline (`hierarchy`) and its views (`meta.views`); a
+  clause outside the document drills into the document that holds it, a
+  target in a locked graph dependency is drawn with its source in that
+  checkout. A project without dependencies is drawn without an `ndf.lock`.
 - Standalone Rust 1.94.0 knowledge compiler and versioned JSON CLI.
 - Canonical graph IR 0.1 with project-scoped `ndf://` identities.
 - Strict Markdown, PTO ASL, repository, test, and evidence adapters.
