@@ -79,6 +79,25 @@ invalid watch contract, `NDF-XREF-002` a missing conformance target,
 `NDF-XREF-003` an undeclared graph namespace, and `NDF-XREF-004` a watched
 identity that has appeared.
 
+### Diagrams
+
+`ndf diagram` emits one document as the graph document a diagram consumer
+reads, with the document's clauses as nodes and its typed edges as
+connections:
+
+```bash
+ndf diagram docs/pipeline.md --format graph
+```
+
+`--format graph` prints the bare document for a consumer such as the
+[Dialogram](https://github.com/endrix) `ndf-ide` shell, which parses stdout as
+is; `--format json` wraps it in the usual envelope. The command finds the
+project from the file, parses and validates it the way `check` does, and exits
+with status 2 only when the file is in no NDF project at all. A project that
+fails to load yields a partial document carrying the reason. `ndf-sidecar`,
+built beside `ndf`, speaks the sidecar protocol a diagram consumer expects:
+`getCapabilities` and `exportGraph`, and no mutation.
+
 ## Documentation
 
 - [English specification](normative_language.md)

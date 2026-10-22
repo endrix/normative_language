@@ -1,0 +1,14 @@
+format_version: "0.2"
+project: diagram
+roots:
+  - docs/**/*.md
+id_prefixes:
+  - DOC
+  - FWD
+  - PRM
+  - Q
+  - VER
+domains:
+  - forwarding
+policies: {}
+dependencies: {}

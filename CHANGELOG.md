@@ -6,6 +6,10 @@ All notable changes to NDF are documented here.
 
 ### Added
 
+- `ndf diagram` emits one document as a diagram graph document (`--format
+  graph` for a diagram consumer, `--format json` for the envelope), and the
+  `ndf-sidecar` binary answers a diagram platform's `getCapabilities` and
+  `exportGraph` operations over the sidecar protocol.
 - Standalone Rust 1.94.0 knowledge compiler and versioned JSON CLI.
 - Canonical graph IR 0.1 with project-scoped `ndf://` identities.
 - Strict Markdown, PTO ASL, repository, test, and evidence adapters.

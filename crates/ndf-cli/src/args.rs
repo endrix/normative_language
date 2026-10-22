@@ -30,6 +30,7 @@ impl Arguments {
             Some(Command::Export { .. }) => "export",
             Some(Command::Id { .. }) => "id allocate",
             Some(Command::Fix { .. }) => "fix",
+            Some(Command::Diagram { .. }) => "diagram",
             None => "unknown",
         }
     }
@@ -108,6 +109,12 @@ pub enum Command {
         #[arg(long)]
         check: bool,
     },
+    /// Emit one NDF document as a diagram graph document.
+    Diagram {
+        file: PathBuf,
+        #[arg(long, value_enum, default_value_t = DiagramFormat::Json)]
+        format: DiagramFormat,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -154,6 +161,15 @@ pub enum IdCommand {
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum JsonFormat {
     Json,
+}
+
+/// `json` wraps the document in the machine envelope like every other
+/// command; `graph` prints the bare document, which is what a diagram
+/// consumer parses from stdout.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, ValueEnum)]
+pub enum DiagramFormat {
+    Json,
+    Graph,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

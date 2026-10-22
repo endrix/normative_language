@@ -1,0 +1,382 @@
+{
+  "graph": {
+    "edges": [
+      {
+        "from": "port:node:scope:root:FWD-ADM-001:out",
+        "id": "edge:port:node:scope:root:FWD-ADM-001:out->port:node:scope:root:PRM-BUF-001:in:depends-on",
+        "meta": {
+          "label": "depends-on",
+          "role": "depends-on"
+        },
+        "scope": "scope:root",
+        "source": {
+          "file": "<root>/docs/forwarding.md",
+          "line": 17
+        },
+        "to": "port:node:scope:root:PRM-BUF-001:in"
+      },
+      {
+        "from": "port:node:scope:root:PRM-BUF-001:out",
+        "id": "edge:port:node:scope:root:PRM-BUF-001:out->port:node:scope:root:PRM-THR-001:in:couples-with",
+        "meta": {
+          "label": "couples-with",
+          "role": "couples-with",
+          "undirected": true
+        },
+        "scope": "scope:root",
+        "source": {
+          "file": "<root>/docs/options.md",
+          "line": 11
+        },
+        "to": "port:node:scope:root:PRM-THR-001:in"
+      }
+    ],
+    "id": "wf:DOC-OPTIONS",
+    "meta": {
+      "file": "<root>/docs/options.md",
+      "ndf": {
+        "attributes": {
+          "authority": "normative"
+        },
+        "id": "ndf://diagram/DOC-OPTIONS",
+        "kind": "document",
+        "owner": "forwarding",
+        "status": "active"
+      },
+      "project": "diagram",
+      "title": "Design options",
+      "workflow": "DOC-OPTIONS"
+    },
+    "nodes": [
+      {
+        "id": "node:scope:root:PRM-BUF-001",
+        "kind": "option",
+        "label": "Admission buffer depth",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "option"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "PRM-BUF-001"
+                },
+                {
+                  "name": "modality",
+                  "value": "tbd"
+                },
+                {
+                  "name": "refinement",
+                  "value": "L2"
+                },
+                {
+                  "name": "domain",
+                  "value": "forwarding"
+                },
+                {
+                  "name": "status",
+                  "value": "draft"
+                },
+                {
+                  "name": "owner",
+                  "value": "forwarding"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "The admission buffer depth is a design-space parameter: default 64 frames,\nexplored over 32 to 128."
+            }
+          ],
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://diagram/PRM-BUF-001"
+            },
+            {
+              "label": "Kind",
+              "value": "option"
+            },
+            {
+              "label": "Modality",
+              "value": "tbd"
+            },
+            {
+              "label": "Refinement",
+              "value": "L2"
+            },
+            {
+              "label": "Domain",
+              "value": "forwarding"
+            },
+            {
+              "label": "Status",
+              "value": "draft"
+            },
+            {
+              "label": "Owner",
+              "value": "forwarding"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "The admission buffer depth is a design-space parameter: default 64 frames,\nexplored over 32 to 128."
+            }
+          ],
+          "ndf": {
+            "domain": "forwarding",
+            "id": "ndf://diagram/PRM-BUF-001",
+            "kind": "option",
+            "modality": "tbd",
+            "owner": "forwarding",
+            "refinement": "L2",
+            "status": "draft"
+          },
+          "source": {
+            "file": "<root>/docs/options.md",
+            "line": 10
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:PRM-BUF-001:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:PRM-BUF-001:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "PRM-BUF-001 \u00b7 tbd \u00b7 L2"
+      },
+      {
+        "id": "node:scope:root:PRM-THR-001",
+        "kind": "option",
+        "label": "Concurrent threads",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "option"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "PRM-THR-001"
+                },
+                {
+                  "name": "modality",
+                  "value": "tbd"
+                },
+                {
+                  "name": "refinement",
+                  "value": "L2"
+                },
+                {
+                  "name": "domain",
+                  "value": "forwarding"
+                },
+                {
+                  "name": "status",
+                  "value": "draft"
+                },
+                {
+                  "name": "owner",
+                  "value": "forwarding"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "The number of concurrent forwarding threads trades off against the buffer\ndepth under a fixed memory budget."
+            }
+          ],
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://diagram/PRM-THR-001"
+            },
+            {
+              "label": "Kind",
+              "value": "option"
+            },
+            {
+              "label": "Modality",
+              "value": "tbd"
+            },
+            {
+              "label": "Refinement",
+              "value": "L2"
+            },
+            {
+              "label": "Domain",
+              "value": "forwarding"
+            },
+            {
+              "label": "Status",
+              "value": "draft"
+            },
+            {
+              "label": "Owner",
+              "value": "forwarding"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "The number of concurrent forwarding threads trades off against the buffer\ndepth under a fixed memory budget."
+            }
+          ],
+          "ndf": {
+            "domain": "forwarding",
+            "id": "ndf://diagram/PRM-THR-001",
+            "kind": "option",
+            "modality": "tbd",
+            "owner": "forwarding",
+            "refinement": "L2",
+            "status": "draft"
+          },
+          "source": {
+            "file": "<root>/docs/options.md",
+            "line": 16
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:PRM-THR-001:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:PRM-THR-001:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "PRM-THR-001 \u00b7 tbd \u00b7 L2"
+      },
+      {
+        "id": "node:scope:root:FWD-ADM-001",
+        "kind": "requirement",
+        "label": "Frame admission",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "requirement"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "FWD-ADM-001"
+                },
+                {
+                  "name": "modality",
+                  "value": "must"
+                },
+                {
+                  "name": "refinement",
+                  "value": "L1"
+                },
+                {
+                  "name": "domain",
+                  "value": "forwarding"
+                },
+                {
+                  "name": "status",
+                  "value": "active"
+                },
+                {
+                  "name": "owner",
+                  "value": "forwarding"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "A frame MUST be admitted only if it passes FCS validation ([[MISSING-001]])\nand fits the admission buffer."
+            }
+          ],
+          "external": true,
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://diagram/FWD-ADM-001"
+            },
+            {
+              "label": "Kind",
+              "value": "requirement"
+            },
+            {
+              "label": "Modality",
+              "value": "must"
+            },
+            {
+              "label": "Refinement",
+              "value": "L1"
+            },
+            {
+              "label": "Domain",
+              "value": "forwarding"
+            },
+            {
+              "label": "Status",
+              "value": "active"
+            },
+            {
+              "label": "Owner",
+              "value": "forwarding"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "A frame MUST be admitted only if it passes FCS validation ([[MISSING-001]])\nand fits the admission buffer."
+            }
+          ],
+          "ndf": {
+            "domain": "forwarding",
+            "id": "ndf://diagram/FWD-ADM-001",
+            "kind": "requirement",
+            "modality": "must",
+            "owner": "forwarding",
+            "refinement": "L1",
+            "status": "active"
+          },
+          "referencedEntityName": "FWD-ADM-001",
+          "referencedSource": {
+            "file": "<root>/docs/forwarding.md",
+            "line": 16
+          },
+          "source": {
+            "file": "<root>/docs/forwarding.md",
+            "line": 16
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:FWD-ADM-001:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:FWD-ADM-001:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "FWD-ADM-001 \u00b7 must \u00b7 L1"
+      }
+    ],
+    "subgraphs": []
+  },
+  "version": "1.0"
+}

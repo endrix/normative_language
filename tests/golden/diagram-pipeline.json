@@ -1,0 +1,651 @@
+{
+  "diagnostics": [
+    {
+      "code": "NDF-XREF-003",
+      "message": "external target project is not a declared graph dependency: pto-spec. Declare and exactly lock the external graph dependency.",
+      "severity": "error",
+      "startColumn": 0,
+      "startLine": 24,
+      "uri": "<root>/docs/pipeline.md"
+    },
+    {
+      "code": "NDF-XREF-003",
+      "message": "external target project is not a declared graph dependency: pto-spec. Declare and exactly lock the external graph dependency.",
+      "severity": "error",
+      "startColumn": 0,
+      "startLine": 29,
+      "uri": "<root>/docs/pipeline.md"
+    }
+  ],
+  "graph": {
+    "edges": [
+      {
+        "from": "port:node:scope:root:PIPE-ISSUE-010:out",
+        "id": "edge:port:node:scope:root:PIPE-ISSUE-010:out->port:node:scope:root:PIPE-ISSUE-001:in:refines",
+        "meta": {
+          "label": "refines",
+          "role": "refines"
+        },
+        "scope": "scope:root",
+        "source": {
+          "file": "<root>/docs/pipeline.md",
+          "line": 20
+        },
+        "to": "port:node:scope:root:PIPE-ISSUE-001:in"
+      },
+      {
+        "from": "port:node:scope:root:PIPE-PTO-001:out",
+        "id": "edge:port:node:scope:root:PIPE-PTO-001:out->port:node:scope:root:pto-spec.PTO-INST-TILE-TLOAD:in:conforms-to",
+        "meta": {
+          "label": "conforms-to",
+          "role": "conforms-to"
+        },
+        "scope": "scope:root",
+        "source": {
+          "file": "<root>/docs/pipeline.md",
+          "line": 25
+        },
+        "to": "port:node:scope:root:pto-spec.PTO-INST-TILE-TLOAD:in"
+      },
+      {
+        "from": "port:node:scope:root:PIPE-PTO-EXT-001:out",
+        "id": "edge:port:node:scope:root:PIPE-PTO-EXT-001:out->port:node:scope:root:pto-spec.PTO-INST-TILE-PEXT:in:tracks",
+        "meta": {
+          "label": "tracks",
+          "role": "tracks"
+        },
+        "scope": "scope:root",
+        "source": {
+          "file": "<root>/docs/pipeline.md",
+          "line": 30
+        },
+        "to": "port:node:scope:root:pto-spec.PTO-INST-TILE-PEXT:in"
+      }
+    ],
+    "id": "wf:DOC-FIXTURE-PIPELINE",
+    "meta": {
+      "file": "<root>/docs/pipeline.md",
+      "ndf": {
+        "attributes": {
+          "authority": "normative"
+        },
+        "id": "ndf://fixture/DOC-FIXTURE-PIPELINE",
+        "kind": "document",
+        "owner": "core",
+        "status": "active"
+      },
+      "project": "fixture",
+      "title": "Pipeline",
+      "workflow": "DOC-FIXTURE-PIPELINE"
+    },
+    "nodes": [
+      {
+        "id": "node:scope:root:PIPE-ISSUE-001",
+        "kind": "requirement",
+        "label": "Issue contract",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "requirement"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "PIPE-ISSUE-001"
+                },
+                {
+                  "name": "modality",
+                  "value": "must"
+                },
+                {
+                  "name": "refinement",
+                  "value": "L1"
+                },
+                {
+                  "name": "domain",
+                  "value": "core"
+                },
+                {
+                  "name": "status",
+                  "value": "active"
+                },
+                {
+                  "name": "owner",
+                  "value": "core"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "The core MUST issue no more than two instructions per cycle."
+            }
+          ],
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://fixture/PIPE-ISSUE-001"
+            },
+            {
+              "label": "Kind",
+              "value": "requirement"
+            },
+            {
+              "label": "Modality",
+              "value": "must"
+            },
+            {
+              "label": "Refinement",
+              "value": "L1"
+            },
+            {
+              "label": "Domain",
+              "value": "core"
+            },
+            {
+              "label": "Status",
+              "value": "active"
+            },
+            {
+              "label": "Owner",
+              "value": "core"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "The core MUST issue no more than two instructions per cycle."
+            }
+          ],
+          "ndf": {
+            "domain": "core",
+            "id": "ndf://fixture/PIPE-ISSUE-001",
+            "kind": "requirement",
+            "modality": "must",
+            "owner": "core",
+            "refinement": "L1",
+            "status": "active"
+          },
+          "source": {
+            "file": "<root>/docs/pipeline.md",
+            "line": 14
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:PIPE-ISSUE-001:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:PIPE-ISSUE-001:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "PIPE-ISSUE-001 \u00b7 must \u00b7 L1"
+      },
+      {
+        "id": "node:scope:root:PIPE-ISSUE-010",
+        "kind": "requirement",
+        "label": "Issue mechanism",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "requirement"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "PIPE-ISSUE-010"
+                },
+                {
+                  "name": "modality",
+                  "value": "must"
+                },
+                {
+                  "name": "refinement",
+                  "value": "L2"
+                },
+                {
+                  "name": "domain",
+                  "value": "core"
+                },
+                {
+                  "name": "status",
+                  "value": "active"
+                },
+                {
+                  "name": "owner",
+                  "value": "core"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "Two issue slots MUST arbitrate oldest-ready first."
+            }
+          ],
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://fixture/PIPE-ISSUE-010"
+            },
+            {
+              "label": "Kind",
+              "value": "requirement"
+            },
+            {
+              "label": "Modality",
+              "value": "must"
+            },
+            {
+              "label": "Refinement",
+              "value": "L2"
+            },
+            {
+              "label": "Domain",
+              "value": "core"
+            },
+            {
+              "label": "Status",
+              "value": "active"
+            },
+            {
+              "label": "Owner",
+              "value": "core"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "Two issue slots MUST arbitrate oldest-ready first."
+            }
+          ],
+          "ndf": {
+            "domain": "core",
+            "id": "ndf://fixture/PIPE-ISSUE-010",
+            "kind": "requirement",
+            "modality": "must",
+            "owner": "core",
+            "refinement": "L2",
+            "status": "active"
+          },
+          "source": {
+            "file": "<root>/docs/pipeline.md",
+            "line": 19
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:PIPE-ISSUE-010:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:PIPE-ISSUE-010:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "PIPE-ISSUE-010 \u00b7 must \u00b7 L2"
+      },
+      {
+        "id": "node:scope:root:PIPE-PTO-001",
+        "kind": "requirement",
+        "label": "PTO conformance",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "requirement"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "PIPE-PTO-001"
+                },
+                {
+                  "name": "modality",
+                  "value": "must"
+                },
+                {
+                  "name": "refinement",
+                  "value": "L1"
+                },
+                {
+                  "name": "domain",
+                  "value": "core"
+                },
+                {
+                  "name": "status",
+                  "value": "active"
+                },
+                {
+                  "name": "owner",
+                  "value": "core"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "The pipeline MUST preserve the PTO load contract."
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NDF-XREF-003",
+              "message": "external target project is not a declared graph dependency: pto-spec",
+              "severity": "error"
+            }
+          ],
+          "errorMessage": "NDF-XREF-003: external target project is not a declared graph dependency: pto-spec",
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://fixture/PIPE-PTO-001"
+            },
+            {
+              "label": "Kind",
+              "value": "requirement"
+            },
+            {
+              "label": "Modality",
+              "value": "must"
+            },
+            {
+              "label": "Refinement",
+              "value": "L1"
+            },
+            {
+              "label": "Domain",
+              "value": "core"
+            },
+            {
+              "label": "Status",
+              "value": "active"
+            },
+            {
+              "label": "Owner",
+              "value": "core"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "The pipeline MUST preserve the PTO load contract."
+            }
+          ],
+          "isErrored": true,
+          "ndf": {
+            "domain": "core",
+            "id": "ndf://fixture/PIPE-PTO-001",
+            "kind": "requirement",
+            "modality": "must",
+            "owner": "core",
+            "refinement": "L1",
+            "status": "active"
+          },
+          "source": {
+            "file": "<root>/docs/pipeline.md",
+            "line": 24
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:PIPE-PTO-001:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:PIPE-PTO-001:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "PIPE-PTO-001 \u00b7 must \u00b7 L1"
+      },
+      {
+        "id": "node:scope:root:PIPE-PTO-EXT-001",
+        "kind": "requirement",
+        "label": "Prospective PTO extension",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "requirement"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "PIPE-PTO-EXT-001"
+                },
+                {
+                  "name": "modality",
+                  "value": "tbd"
+                },
+                {
+                  "name": "refinement",
+                  "value": "L1"
+                },
+                {
+                  "name": "domain",
+                  "value": "core"
+                },
+                {
+                  "name": "status",
+                  "value": "draft"
+                },
+                {
+                  "name": "owner",
+                  "value": "core"
+                },
+                {
+                  "name": "expected",
+                  "value": "absent"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "The extension remains outside the accepted PTO release."
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NDF-XREF-003",
+              "message": "external target project is not a declared graph dependency: pto-spec",
+              "severity": "error"
+            }
+          ],
+          "errorMessage": "NDF-XREF-003: external target project is not a declared graph dependency: pto-spec",
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://fixture/PIPE-PTO-EXT-001"
+            },
+            {
+              "label": "Kind",
+              "value": "requirement"
+            },
+            {
+              "label": "Modality",
+              "value": "tbd"
+            },
+            {
+              "label": "Refinement",
+              "value": "L1"
+            },
+            {
+              "label": "Domain",
+              "value": "core"
+            },
+            {
+              "label": "Status",
+              "value": "draft"
+            },
+            {
+              "label": "Owner",
+              "value": "core"
+            },
+            {
+              "label": "expected",
+              "value": "absent"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "The extension remains outside the accepted PTO release."
+            }
+          ],
+          "isErrored": true,
+          "ndf": {
+            "attributes": {
+              "expected": "absent"
+            },
+            "domain": "core",
+            "id": "ndf://fixture/PIPE-PTO-EXT-001",
+            "kind": "requirement",
+            "modality": "tbd",
+            "owner": "core",
+            "refinement": "L1",
+            "status": "draft"
+          },
+          "source": {
+            "file": "<root>/docs/pipeline.md",
+            "line": 29
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:PIPE-PTO-EXT-001:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:PIPE-PTO-EXT-001:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "PIPE-PTO-EXT-001 \u00b7 tbd \u00b7 L1"
+      },
+      {
+        "id": "node:scope:root:pto-spec.PTO-INST-TILE-PEXT",
+        "kind": "blackbox",
+        "label": "pto-spec/PTO-INST-TILE-PEXT",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "blackbox"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "ndf://pto-spec/PTO-INST-TILE-PEXT"
+                },
+                {
+                  "name": "project",
+                  "value": "pto-spec"
+                }
+              ],
+              "name": "ndf"
+            }
+          ],
+          "external": true,
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://pto-spec/PTO-INST-TILE-PEXT"
+            },
+            {
+              "label": "Project",
+              "value": "pto-spec"
+            }
+          ],
+          "ndf": {
+            "id": "ndf://pto-spec/PTO-INST-TILE-PEXT",
+            "project": "pto-spec"
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:pto-spec.PTO-INST-TILE-PEXT:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:pto-spec.PTO-INST-TILE-PEXT:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "ndf://pto-spec/PTO-INST-TILE-PEXT"
+      },
+      {
+        "id": "node:scope:root:pto-spec.PTO-INST-TILE-TLOAD",
+        "kind": "blackbox",
+        "label": "pto-spec/PTO-INST-TILE-TLOAD",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "blackbox"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "ndf://pto-spec/PTO-INST-TILE-TLOAD"
+                },
+                {
+                  "name": "project",
+                  "value": "pto-spec"
+                }
+              ],
+              "name": "ndf"
+            }
+          ],
+          "external": true,
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://pto-spec/PTO-INST-TILE-TLOAD"
+            },
+            {
+              "label": "Project",
+              "value": "pto-spec"
+            }
+          ],
+          "ndf": {
+            "id": "ndf://pto-spec/PTO-INST-TILE-TLOAD",
+            "project": "pto-spec"
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:pto-spec.PTO-INST-TILE-TLOAD:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:pto-spec.PTO-INST-TILE-TLOAD:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "ndf://pto-spec/PTO-INST-TILE-TLOAD"
+      }
+    ],
+    "subgraphs": []
+  },
+  "version": "1.0"
+}

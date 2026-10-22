@@ -461,3 +461,180 @@ fn checked_in_cli_smoke_fixture_is_self_contained() {
     assert_envelope(status, &payload, "check");
     assert_eq!(payload["data"]["node_count"], 2);
 }
+
+fn raw(cwd: &Path, binary: &Path, arguments: &[&str], input: &str) -> (i32, String, String) {
+    use std::io::Write;
+    use std::process::Stdio;
+    let mut child = Command::new(binary)
+        .args(arguments)
+        .current_dir(cwd)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.as_bytes())
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    (
+        output.status.code().unwrap(),
+        String::from_utf8(output.stdout).unwrap(),
+        String::from_utf8(output.stderr).unwrap(),
+    )
+}
+
+#[test]
+fn diagram_graph_format_prints_the_bare_document_for_a_diagram_consumer() {
+    let root = repository().join("tests/fixtures/cli-smoke/project");
+    let file = root.join("docs/smoke.md");
+
+    let (status, stdout, _) = raw(
+        &root,
+        assert_cmd::cargo::cargo_bin!("ndf"),
+        &["diagram", file.to_str().unwrap(), "--format", "graph"],
+        "",
+    );
+
+    assert_eq!(status, 0);
+    let document: Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(document["version"], "1.0");
+    assert!(document.get("schema_version").is_none(), "no envelope");
+    assert_eq!(document["graph"]["id"], "wf:DOC-CLI-SMOKE");
+    assert_eq!(document["graph"]["meta"]["workflow"], "DOC-CLI-SMOKE");
+    let node = &document["graph"]["nodes"][0];
+    assert_eq!(node["id"], "node:scope:root:SMOKE-001");
+    assert_eq!(node["kind"], "requirement");
+    assert_eq!(node["label"], "Self-contained contract");
+    assert_eq!(node["ports"][0]["id"], "port:node:scope:root:SMOKE-001:in");
+    assert_eq!(node["ports"][1]["direction"], "out");
+    assert_eq!(
+        node["meta"]["definitionAnnotations"][0]["name"],
+        "requirement"
+    );
+    assert_eq!(node["meta"]["source"]["line"], 10);
+    assert!(
+        node["meta"]["source"]["file"]
+            .as_str()
+            .unwrap()
+            .ends_with("docs/smoke.md")
+    );
+}
+
+#[test]
+fn diagram_json_format_wraps_the_document_in_the_envelope() {
+    let root = repository().join("tests/fixtures/cli-smoke/project");
+    let file = root.join("docs/smoke.md");
+
+    let (status, payload) = ndf(&root, &["diagram", file.to_str().unwrap()]);
+
+    assert_envelope(status, &payload, "diagram");
+    assert_eq!(payload["data"]["version"], "1.0");
+    assert_eq!(
+        payload["data"]["graph"]["nodes"].as_array().unwrap().len(),
+        1
+    );
+}
+
+#[test]
+fn diagram_refuses_a_file_outside_every_project_with_exit_two() {
+    let directory = tempfile::tempdir().unwrap();
+    let file = directory.path().join("loose.md");
+    fs::write(&file, "# Loose\n").unwrap();
+
+    let (status, stdout, stderr) = raw(
+        directory.path(),
+        assert_cmd::cargo::cargo_bin!("ndf"),
+        &["diagram", file.to_str().unwrap(), "--format", "graph"],
+        "",
+    );
+
+    assert_eq!(status, 2);
+    assert_eq!(stdout, "");
+    assert!(stderr.contains("not inside an NDF project"), "{stderr}");
+}
+
+#[test]
+fn diagram_resolves_a_locked_cross_project_target_as_a_blackbox() {
+    let directory = tempfile::tempdir().unwrap();
+    graph_command_fixture(directory.path());
+    let file = directory.path().join("docs/pipeline.md");
+
+    let (status, stdout, _) = raw(
+        directory.path(),
+        assert_cmd::cargo::cargo_bin!("ndf"),
+        &["diagram", file.to_str().unwrap(), "--format", "graph"],
+        "",
+    );
+
+    assert_eq!(status, 0);
+    let document: Value = serde_json::from_str(&stdout).unwrap();
+    let nodes = document["graph"]["nodes"].as_array().unwrap();
+    let blackbox = nodes
+        .iter()
+        .find(|node| node["id"] == "node:scope:root:pto-spec.PTO-INST-TILE-TLOAD")
+        .unwrap();
+    assert_eq!(blackbox["kind"], "blackbox");
+    assert_eq!(blackbox["meta"]["external"], true);
+    let conforming = nodes
+        .iter()
+        .find(|node| node["id"] == "node:scope:root:PIPE-PTO-001")
+        .unwrap();
+    assert!(
+        conforming["meta"].get("isErrored").is_none(),
+        "{conforming}"
+    );
+    assert_eq!(document["graph"]["edges"].as_array().unwrap().len(), 3);
+}
+
+#[test]
+fn sidecar_answers_capabilities_export_and_refuses_mutations() {
+    let root = repository().join("tests/fixtures/cli-smoke/project");
+    let file = root.join("docs/smoke.md");
+    let input = format!(
+        "{{\"op\":\"ndf.getCapabilities\"}}\n{{\"file\":{file},\"op\":\"ndf.exportGraph\",\"args\":{{}}}}\n{{\"file\":{file},\"op\":\"ndf.createNode\",\"args\":{{}}}}\nnot json\n",
+        file = serde_json::to_string(file.to_str().unwrap()).unwrap()
+    );
+
+    let (status, stdout, _) = raw(
+        &root,
+        assert_cmd::cargo::cargo_bin!("ndf-sidecar"),
+        &[],
+        &input,
+    );
+
+    assert_eq!(status, 0);
+    let responses: Vec<Value> = stdout
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert_eq!(responses.len(), 4);
+
+    let capabilities = &responses[0];
+    assert_eq!(capabilities["status"], "ok");
+    assert_eq!(capabilities["diagnostic"]["protocolVersion"], 2);
+    assert_eq!(
+        capabilities["diagnostic"]["supportedOps"],
+        serde_json::json!(["getCapabilities", "exportGraph"])
+    );
+    assert_eq!(
+        capabilities["diagnostic"]["features"]["sourceTruthEdits"],
+        false
+    );
+
+    let export = &responses[1];
+    assert_eq!(export["status"], "ok");
+    assert_eq!(export["revision"].as_str().unwrap().len(), 64);
+    assert_eq!(export["diagnostic"]["partial"], false);
+    assert_eq!(export["diagnostic"]["graph"]["network"], "DOC-CLI-SMOKE");
+    let node = &export["diagnostic"]["graph"]["nodes"][0];
+    assert_eq!(node["id"], "node:scope:root:SMOKE-001");
+    assert!(node.get("metadata").is_some());
+
+    assert_eq!(responses[2]["status"], "error");
+    assert_eq!(responses[2]["diagnostic"]["code"], "unsupported_op");
+    assert_eq!(responses[3]["diagnostic"]["code"], "parse_error");
+}

@@ -1,0 +1,805 @@
+{
+  "diagnostics": [
+    {
+      "code": "NDF-EDGE-001",
+      "message": "mandatory edge depends-on has a dangling endpoint. Resolve both endpoints or remove the mandatory edge.",
+      "severity": "error",
+      "startColumn": 0,
+      "startLine": 22,
+      "uri": "<root>/docs/forwarding.md"
+    }
+  ],
+  "graph": {
+    "edges": [
+      {
+        "from": "port:node:scope:root:FWD-ADM-001:out",
+        "id": "edge:port:node:scope:root:FWD-ADM-001:out->port:node:scope:root:PRM-BUF-001:in:depends-on",
+        "meta": {
+          "label": "depends-on",
+          "role": "depends-on"
+        },
+        "scope": "scope:root",
+        "source": {
+          "file": "<root>/docs/forwarding.md",
+          "line": 17
+        },
+        "to": "port:node:scope:root:PRM-BUF-001:in"
+      },
+      {
+        "from": "port:node:scope:root:FWD-ADM-001:out",
+        "id": "edge:port:node:scope:root:FWD-ADM-001:out->port:node:scope:root:FWD-ADM-000:in:refines",
+        "meta": {
+          "label": "refines",
+          "role": "refines"
+        },
+        "scope": "scope:root",
+        "source": {
+          "file": "<root>/docs/forwarding.md",
+          "line": 17
+        },
+        "to": "port:node:scope:root:FWD-ADM-000:in"
+      },
+      {
+        "from": "port:node:scope:root:FWD-ADM-002:out",
+        "id": "edge:port:node:scope:root:FWD-ADM-002:out->port:node:scope:root:FWD-ADM-001:in:conflicts-with",
+        "meta": {
+          "label": "conflicts-with",
+          "role": "conflicts-with",
+          "undirected": true
+        },
+        "scope": "scope:root",
+        "source": {
+          "file": "<root>/docs/forwarding.md",
+          "line": 23
+        },
+        "to": "port:node:scope:root:FWD-ADM-001:in"
+      },
+      {
+        "from": "port:node:scope:root:FWD-ADM-002:out",
+        "id": "edge:port:node:scope:root:FWD-ADM-002:out->port:node:scope:root:MISSING-001:in:depends-on",
+        "meta": {
+          "label": "depends-on",
+          "role": "depends-on"
+        },
+        "scope": "scope:root",
+        "source": {
+          "file": "<root>/docs/forwarding.md",
+          "line": 23
+        },
+        "to": "port:node:scope:root:MISSING-001:in"
+      },
+      {
+        "from": "port:node:scope:root:Q-001:out",
+        "id": "edge:port:node:scope:root:Q-001:out->port:node:scope:root:FWD-ADM-002:in:blocks",
+        "meta": {
+          "label": "blocks",
+          "role": "blocks"
+        },
+        "scope": "scope:root",
+        "source": {
+          "file": "<root>/docs/forwarding.md",
+          "line": 28
+        },
+        "to": "port:node:scope:root:FWD-ADM-002:in"
+      },
+      {
+        "from": "port:node:scope:root:VER-ADM-001:out",
+        "id": "edge:port:node:scope:root:VER-ADM-001:out->port:node:scope:root:FWD-ADM-001:in:verifies",
+        "meta": {
+          "label": "verifies",
+          "role": "verifies"
+        },
+        "scope": "scope:root",
+        "source": {
+          "file": "<root>/docs/forwarding.md",
+          "line": 33
+        },
+        "to": "port:node:scope:root:FWD-ADM-001:in"
+      }
+    ],
+    "id": "wf:DOC-FORWARDING",
+    "meta": {
+      "file": "<root>/docs/forwarding.md",
+      "ndf": {
+        "attributes": {
+          "authority": "normative"
+        },
+        "id": "ndf://diagram/DOC-FORWARDING",
+        "kind": "document",
+        "owner": "forwarding",
+        "status": "active"
+      },
+      "project": "diagram",
+      "title": "Forwarding",
+      "workflow": "DOC-FORWARDING"
+    },
+    "nodes": [
+      {
+        "id": "node:scope:root:FWD-ADM-000",
+        "kind": "architecture",
+        "label": "Forwarding intent",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "architecture"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "FWD-ADM-000"
+                },
+                {
+                  "name": "refinement",
+                  "value": "L0"
+                },
+                {
+                  "name": "domain",
+                  "value": "forwarding"
+                },
+                {
+                  "name": "status",
+                  "value": "active"
+                },
+                {
+                  "name": "owner",
+                  "value": "forwarding"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "The switch admits a frame to the forwarding pipeline only when it is well\nformed, and drops it otherwise."
+            }
+          ],
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://diagram/FWD-ADM-000"
+            },
+            {
+              "label": "Kind",
+              "value": "architecture"
+            },
+            {
+              "label": "Refinement",
+              "value": "L0"
+            },
+            {
+              "label": "Domain",
+              "value": "forwarding"
+            },
+            {
+              "label": "Status",
+              "value": "active"
+            },
+            {
+              "label": "Owner",
+              "value": "forwarding"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "The switch admits a frame to the forwarding pipeline only when it is well\nformed, and drops it otherwise."
+            }
+          ],
+          "ndf": {
+            "domain": "forwarding",
+            "id": "ndf://diagram/FWD-ADM-000",
+            "kind": "architecture",
+            "owner": "forwarding",
+            "refinement": "L0",
+            "status": "active"
+          },
+          "source": {
+            "file": "<root>/docs/forwarding.md",
+            "line": 10
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:FWD-ADM-000:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:FWD-ADM-000:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "FWD-ADM-000 \u00b7 L0"
+      },
+      {
+        "id": "node:scope:root:FWD-ADM-001",
+        "kind": "requirement",
+        "label": "Frame admission",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "requirement"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "FWD-ADM-001"
+                },
+                {
+                  "name": "modality",
+                  "value": "must"
+                },
+                {
+                  "name": "refinement",
+                  "value": "L1"
+                },
+                {
+                  "name": "domain",
+                  "value": "forwarding"
+                },
+                {
+                  "name": "status",
+                  "value": "active"
+                },
+                {
+                  "name": "owner",
+                  "value": "forwarding"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "A frame MUST be admitted only if it passes FCS validation ([[MISSING-001]])\nand fits the admission buffer."
+            }
+          ],
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://diagram/FWD-ADM-001"
+            },
+            {
+              "label": "Kind",
+              "value": "requirement"
+            },
+            {
+              "label": "Modality",
+              "value": "must"
+            },
+            {
+              "label": "Refinement",
+              "value": "L1"
+            },
+            {
+              "label": "Domain",
+              "value": "forwarding"
+            },
+            {
+              "label": "Status",
+              "value": "active"
+            },
+            {
+              "label": "Owner",
+              "value": "forwarding"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "A frame MUST be admitted only if it passes FCS validation ([[MISSING-001]])\nand fits the admission buffer."
+            }
+          ],
+          "ndf": {
+            "domain": "forwarding",
+            "id": "ndf://diagram/FWD-ADM-001",
+            "kind": "requirement",
+            "modality": "must",
+            "owner": "forwarding",
+            "refinement": "L1",
+            "status": "active"
+          },
+          "source": {
+            "file": "<root>/docs/forwarding.md",
+            "line": 16
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:FWD-ADM-001:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:FWD-ADM-001:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "FWD-ADM-001 \u00b7 must \u00b7 L1"
+      },
+      {
+        "id": "node:scope:root:FWD-ADM-002",
+        "kind": "requirement",
+        "label": "Admission under pressure",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "requirement"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "FWD-ADM-002"
+                },
+                {
+                  "name": "modality",
+                  "value": "should"
+                },
+                {
+                  "name": "refinement",
+                  "value": "L1"
+                },
+                {
+                  "name": "domain",
+                  "value": "forwarding"
+                },
+                {
+                  "name": "status",
+                  "value": "draft"
+                },
+                {
+                  "name": "owner",
+                  "value": "forwarding"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "Under back pressure the switch SHOULD admit every frame and defer the check."
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NDF-EDGE-001",
+              "message": "mandatory edge depends-on has a dangling endpoint",
+              "severity": "error"
+            }
+          ],
+          "errorMessage": "NDF-EDGE-001: mandatory edge depends-on has a dangling endpoint",
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://diagram/FWD-ADM-002"
+            },
+            {
+              "label": "Kind",
+              "value": "requirement"
+            },
+            {
+              "label": "Modality",
+              "value": "should"
+            },
+            {
+              "label": "Refinement",
+              "value": "L1"
+            },
+            {
+              "label": "Domain",
+              "value": "forwarding"
+            },
+            {
+              "label": "Status",
+              "value": "draft"
+            },
+            {
+              "label": "Owner",
+              "value": "forwarding"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "Under back pressure the switch SHOULD admit every frame and defer the check."
+            }
+          ],
+          "isErrored": true,
+          "ndf": {
+            "domain": "forwarding",
+            "id": "ndf://diagram/FWD-ADM-002",
+            "kind": "requirement",
+            "modality": "should",
+            "owner": "forwarding",
+            "refinement": "L1",
+            "status": "draft"
+          },
+          "source": {
+            "file": "<root>/docs/forwarding.md",
+            "line": 22
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:FWD-ADM-002:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:FWD-ADM-002:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "FWD-ADM-002 \u00b7 should \u00b7 L1"
+      },
+      {
+        "id": "node:scope:root:Q-001",
+        "kind": "question",
+        "label": "Which admission policy wins",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "question"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "Q-001"
+                },
+                {
+                  "name": "domain",
+                  "value": "forwarding"
+                },
+                {
+                  "name": "status",
+                  "value": "open"
+                },
+                {
+                  "name": "owner",
+                  "value": "forwarding"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "Admission under pressure contradicts frame admission; one of them has to go."
+            }
+          ],
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://diagram/Q-001"
+            },
+            {
+              "label": "Kind",
+              "value": "question"
+            },
+            {
+              "label": "Domain",
+              "value": "forwarding"
+            },
+            {
+              "label": "Status",
+              "value": "open"
+            },
+            {
+              "label": "Owner",
+              "value": "forwarding"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "Admission under pressure contradicts frame admission; one of them has to go."
+            }
+          ],
+          "ndf": {
+            "domain": "forwarding",
+            "id": "ndf://diagram/Q-001",
+            "kind": "question",
+            "owner": "forwarding",
+            "status": "open"
+          },
+          "source": {
+            "file": "<root>/docs/forwarding.md",
+            "line": 27
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:Q-001:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:Q-001:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "Q-001"
+      },
+      {
+        "id": "node:scope:root:VER-ADM-001",
+        "kind": "verification",
+        "label": "Admission conformance",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "verification"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "VER-ADM-001"
+                },
+                {
+                  "name": "modality",
+                  "value": "must"
+                },
+                {
+                  "name": "refinement",
+                  "value": "L3"
+                },
+                {
+                  "name": "domain",
+                  "value": "forwarding"
+                },
+                {
+                  "name": "status",
+                  "value": "active"
+                },
+                {
+                  "name": "owner",
+                  "value": "forwarding"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "A directed test MUST present one malformed frame per thousand and observe\nevery one of them dropped."
+            }
+          ],
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://diagram/VER-ADM-001"
+            },
+            {
+              "label": "Kind",
+              "value": "verification"
+            },
+            {
+              "label": "Modality",
+              "value": "must"
+            },
+            {
+              "label": "Refinement",
+              "value": "L3"
+            },
+            {
+              "label": "Domain",
+              "value": "forwarding"
+            },
+            {
+              "label": "Status",
+              "value": "active"
+            },
+            {
+              "label": "Owner",
+              "value": "forwarding"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "A directed test MUST present one malformed frame per thousand and observe\nevery one of them dropped."
+            }
+          ],
+          "ndf": {
+            "domain": "forwarding",
+            "id": "ndf://diagram/VER-ADM-001",
+            "kind": "verification",
+            "modality": "must",
+            "owner": "forwarding",
+            "refinement": "L3",
+            "status": "active"
+          },
+          "source": {
+            "file": "<root>/docs/forwarding.md",
+            "line": 32
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:VER-ADM-001:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:VER-ADM-001:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "VER-ADM-001 \u00b7 must \u00b7 L3"
+      },
+      {
+        "id": "node:scope:root:MISSING-001",
+        "kind": "blackbox",
+        "label": "MISSING-001",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "blackbox"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "ndf://diagram/MISSING-001"
+                },
+                {
+                  "name": "project",
+                  "value": "diagram"
+                }
+              ],
+              "name": "ndf"
+            }
+          ],
+          "external": true,
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://diagram/MISSING-001"
+            },
+            {
+              "label": "Project",
+              "value": "diagram"
+            }
+          ],
+          "ndf": {
+            "id": "ndf://diagram/MISSING-001",
+            "project": "diagram"
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:MISSING-001:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:MISSING-001:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "ndf://diagram/MISSING-001"
+      },
+      {
+        "id": "node:scope:root:PRM-BUF-001",
+        "kind": "option",
+        "label": "Admission buffer depth",
+        "meta": {
+          "definitionAnnotations": [
+            {
+              "name": "option"
+            },
+            {
+              "arguments": [
+                {
+                  "name": "id",
+                  "value": "PRM-BUF-001"
+                },
+                {
+                  "name": "modality",
+                  "value": "tbd"
+                },
+                {
+                  "name": "refinement",
+                  "value": "L2"
+                },
+                {
+                  "name": "domain",
+                  "value": "forwarding"
+                },
+                {
+                  "name": "status",
+                  "value": "draft"
+                },
+                {
+                  "name": "owner",
+                  "value": "forwarding"
+                }
+              ],
+              "name": "ndf"
+            },
+            {
+              "name": "body",
+              "text": "The admission buffer depth is a design-space parameter: default 64 frames,\nexplored over 32 to 128."
+            }
+          ],
+          "external": true,
+          "facts": [
+            {
+              "label": "ID",
+              "value": "ndf://diagram/PRM-BUF-001"
+            },
+            {
+              "label": "Kind",
+              "value": "option"
+            },
+            {
+              "label": "Modality",
+              "value": "tbd"
+            },
+            {
+              "label": "Refinement",
+              "value": "L2"
+            },
+            {
+              "label": "Domain",
+              "value": "forwarding"
+            },
+            {
+              "label": "Status",
+              "value": "draft"
+            },
+            {
+              "label": "Owner",
+              "value": "forwarding"
+            },
+            {
+              "label": "Body",
+              "markdown": true,
+              "value": "The admission buffer depth is a design-space parameter: default 64 frames,\nexplored over 32 to 128."
+            }
+          ],
+          "ndf": {
+            "domain": "forwarding",
+            "id": "ndf://diagram/PRM-BUF-001",
+            "kind": "option",
+            "modality": "tbd",
+            "owner": "forwarding",
+            "refinement": "L2",
+            "status": "draft"
+          },
+          "referencedEntityName": "PRM-BUF-001",
+          "referencedSource": {
+            "file": "<root>/docs/options.md",
+            "line": 10
+          },
+          "source": {
+            "file": "<root>/docs/options.md",
+            "line": 10
+          }
+        },
+        "ports": [
+          {
+            "direction": "in",
+            "id": "port:node:scope:root:PRM-BUF-001:in",
+            "name": "in"
+          },
+          {
+            "direction": "out",
+            "id": "port:node:scope:root:PRM-BUF-001:out",
+            "name": "out"
+          }
+        ],
+        "scope": "scope:root",
+        "type": "PRM-BUF-001 \u00b7 tbd \u00b7 L2"
+      }
+    ],
+    "subgraphs": []
+  },
+  "version": "1.0"
+}

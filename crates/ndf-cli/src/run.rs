@@ -3,24 +3,24 @@ use std::path::{Path, PathBuf};
 use std::process::Command as ProcessCommand;
 
 use ndf_compiler::CompilerError;
-use ndf_compiler::adapters::parse_project;
-use ndf_compiler::dependencies::{load_dependency_graphs, resolve_dependencies};
+use ndf_compiler::dependencies::resolve_dependencies;
+use ndf_compiler::diagram::{GraphDocument, failure_document};
 use ndf_compiler::diff::semantic_diff;
 use ndf_compiler::export::export_graph;
 use ndf_compiler::fix::{FixMode, markdown_paths, safe_fix};
 use ndf_compiler::id_allocator::allocate_id;
 use ndf_compiler::index::{BuildProvenance, NdfIndex, build_index};
 use ndf_compiler::manifest::{ProjectLock, ProjectManifest};
+use ndf_compiler::project::load_project_graph;
 use ndf_compiler::pto_impact::pto_release_impact;
 use ndf_compiler::query::{query_nodes, trace};
 use ndf_compiler::report::{CoveragePolicy, coverage};
-use ndf_compiler::rules::{ValidationPolicy, validate_project_graph};
 use ndf_core::identity::NodeId;
 use ndf_core::model::{Diagnostic, DiagnosticSeverity, Graph};
 use ndf_core::version::{FORMAT_VERSION, IR_VERSION, TOOL_VERSION};
 use serde_json::{Value, json};
 
-use crate::args::{Arguments, Command, IdCommand, ImpactCommand, ReportCommand};
+use crate::args::{Arguments, Command, DiagramFormat, IdCommand, ImpactCommand, ReportCommand};
 use crate::envelope::Envelope;
 
 pub fn run(arguments: Arguments) -> Result<Envelope, CompilerError> {
@@ -204,24 +204,52 @@ pub fn run(arguments: Arguments) -> Result<Envelope, CompilerError> {
             )
             .map_err(Into::into)
         }
+        Some(Command::Diagram { file, format }) => {
+            debug_assert_eq!(
+                format,
+                DiagramFormat::Json,
+                "graph output is printed by main"
+            );
+            let (document, ok) = diagram_document(&file)?;
+            Envelope::checked("diagram", ok, document, Vec::new()).map_err(Into::into)
+        }
         None => Err(CompilerError::Contract("a command is required".to_owned())),
     }
 }
 
+/// The diagram of the document at `file`, and whether it is clean: built from
+/// a project that loaded and carrying no error diagnostic. A project that
+/// fails to load (a missing lock, a dirty dependency) yields a partial document
+/// carrying the reason, so a diagram consumer shows the message where the
+/// diagram would be. A file that is in no NDF project at all is the one hard
+/// error.
+pub fn diagram_document(file: &Path) -> Result<(GraphDocument, bool), CompilerError> {
+    let root = ndf_compiler::project::find_project_root(file).ok_or_else(|| {
+        CompilerError::Contract(format!(
+            "{} is not inside an NDF project (no ndf.yaml in any parent directory)",
+            file.display()
+        ))
+    })?;
+    let (manifest, graph) = match load_project_graph(&root) {
+        Ok(loaded) => loaded,
+        Err(error) => return Ok((failure_document(file, error.to_string()), false)),
+    };
+    let request = ndf_compiler::diagram::DiagramRequest {
+        project_root: &root,
+        manifest: &manifest,
+        graph: &graph,
+        file,
+    };
+    let document = ndf_compiler::diagram::build_diagram(&request)?;
+    let clean = document
+        .diagnostics
+        .iter()
+        .all(|diagnostic| diagnostic.severity != "error");
+    Ok((document, clean))
+}
+
 fn project_graph(root: &Path) -> Result<(ProjectManifest, Graph), CompilerError> {
-    let manifest = ProjectManifest::load(&root.join("ndf.yaml"))?;
-    let lock = ProjectLock::load(&root.join("ndf.lock"))?;
-    let dependencies = load_dependency_graphs(&manifest, &lock, root)?;
-    let parsed = parse_project(&manifest)?;
-    let diagnostics = validate_project_graph(&parsed, &dependencies, &ValidationPolicy::default());
-    Ok((
-        manifest,
-        Graph {
-            nodes: parsed.nodes,
-            edges: parsed.edges,
-            diagnostics,
-        },
-    ))
+    load_project_graph(root)
 }
 
 fn provenance(root: &Path, manifest: &ProjectManifest) -> BuildProvenance {
