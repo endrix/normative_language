@@ -13,7 +13,7 @@ use serde_yaml_ng::{Mapping, Value};
 use crate::CompilerError;
 use crate::manifest::ProjectManifest;
 
-const EDGE_FIELDS: &[&str] = &[
+pub(crate) const EDGE_FIELDS: &[&str] = &[
     "refines",
     "depends-on",
     "conflicts-with",
@@ -30,7 +30,7 @@ const EDGE_FIELDS: &[&str] = &[
     "conforms-to",
     "tracks",
 ];
-const CANONICAL_FIELDS: &[&str] = &[
+pub(crate) const CANONICAL_FIELDS: &[&str] = &[
     "kind",
     "modality",
     "refinement",
@@ -38,7 +38,7 @@ const CANONICAL_FIELDS: &[&str] = &[
     "status",
     "owner",
 ];
-const ATTRIBUTE_FIELDS: &[&str] = &[
+pub(crate) const ATTRIBUTE_FIELDS: &[&str] = &[
     "since",
     "date",
     "author",
@@ -61,6 +61,18 @@ pub fn parse_markdown(
         path: path.to_path_buf(),
         source,
     })?;
+    parse_markdown_text(&text, &relative_path, project)
+}
+
+/// Parse a document from its text, as `parse_markdown` parses the file: what
+/// an edit runs on the text it is about to write, to refuse a result that no
+/// longer parses before the file changes.
+pub fn parse_markdown_text(
+    text: &str,
+    relative_path: &str,
+    project: &ProjectManifest,
+) -> Result<ParseResult, CompilerError> {
+    let relative_path = relative_path.to_owned();
     let lines: Vec<_> = text.lines().collect();
     let (front, content_start, front_diagnostics) = parse_front_matter(&lines, &relative_path)?;
     let Some(front) = front else {
@@ -306,12 +318,12 @@ fn cross_project_metadata_diagnostic(
     }
 }
 
-struct Heading<'a> {
-    title: String,
-    local_id: Option<&'a str>,
+pub(crate) struct Heading<'a> {
+    pub(crate) title: String,
+    pub(crate) local_id: Option<&'a str>,
 }
 
-fn parse_heading(line: &str) -> Option<Heading<'_>> {
+pub(crate) fn parse_heading(line: &str) -> Option<Heading<'_>> {
     let hashes = line
         .chars()
         .take_while(|character| *character == '#')
@@ -335,7 +347,7 @@ fn parse_heading(line: &str) -> Option<Heading<'_>> {
     })
 }
 
-fn fence_marker(line: &str) -> Option<char> {
+pub(crate) fn fence_marker(line: &str) -> Option<char> {
     let trimmed = line.trim_start();
     let marker = trimmed.chars().next()?;
     if !matches!(marker, '`' | '~')
@@ -507,7 +519,7 @@ fn parse_metadata(
     (Some(metadata), Vec::new())
 }
 
-fn metadata_tokens(content: &str) -> Vec<(&str, &str)> {
+pub(crate) fn metadata_tokens(content: &str) -> Vec<(&str, &str)> {
     let bytes = content.as_bytes();
     let mut fields = Vec::new();
     let mut index = 0;

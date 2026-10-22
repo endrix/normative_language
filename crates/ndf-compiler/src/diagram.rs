@@ -952,6 +952,11 @@ impl<'a> Project<'a> {
         }
         meta.insert("facts".to_owned(), facts);
         meta.insert("views".to_owned(), views_meta());
+        if node.id.project_id() == self.id && !placement.external {
+            // The fields a panel edits in place (`updateNodeParameter`): the
+            // canonical ones, each with its value or empty when unset.
+            meta.insert("parameters".to_owned(), parameters(node));
+        }
         if node.id.project_id() == self.id
             && let Some(diagnostics) = self.diagnostics_by_subject.get(&node.id)
         {
@@ -1504,6 +1509,19 @@ fn ndf_facts(node: &Node, with_attributes: bool) -> Value {
         );
     }
     Value::Object(facts)
+}
+
+/// The canonical fields as a panel's editable parameters: name and value,
+/// the value empty for a field the clause does not set yet.
+fn parameters(node: &Node) -> Value {
+    let field = |name: &str, value: Option<String>| json!({ "name": name, "value": value.unwrap_or_default() });
+    Value::Array(vec![
+        field("modality", node.modality.as_ref().and_then(enum_name)),
+        field("refinement", node.refinement.clone()),
+        field("domain", node.domain.clone()),
+        field("status", enum_name(&node.status)),
+        field("owner", node.owner.clone()),
+    ])
 }
 
 /// The facts a property panel lists for a clause, in reading order.

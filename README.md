@@ -117,9 +117,26 @@ project from the file, parses and validates it the way `check` does, and exits
 with status 2 only when the file is in no NDF project at all or names a unit
 the project does not have. A project that fails to load yields a partial
 document carrying the reason; a project that declares no dependencies needs no
-`ndf.lock` to be drawn. `ndf-sidecar`, built beside `ndf`, speaks the sidecar
-protocol a diagram consumer expects: `getCapabilities` and `exportGraph` (with
-`args.group`, `args.workflow` and `args.view`), and no mutation.
+`ndf.lock` to be drawn.
+
+`ndf-sidecar`, built beside `ndf`, speaks the sidecar protocol a diagram
+consumer expects. Its queries are `getCapabilities`, `exportGraph` (with
+`args.group`, `args.workflow` and `args.view`), `listTaskTypes` (the clause
+kinds), `listWorkflowTypes`, `listWorkflowInstances` and `listInstanceNames`.
+Its mutations edit the text of the document that owns the file: `createNode`
+appends a clause of `type` titled `name` with an allocated id (`params.prefix`
+or `params.id` choose it; otherwise the prefix the document uses most), a
+`tbd` modality for a normative kind and `draft` status; `renameNode` retitles a
+heading; `deleteNode` removes a clause and is refused while any edge of the
+project targets it; `connect` and `deleteEdge` add and remove an entry of
+`role` (default `references`) in the source clause's metadata comment;
+`updateNodeParameter` sets a canonical or attribute field. A clause is named
+by its id or its title. Every mutation is computed on the text, re-parsed with
+the parser `check` uses, and refused with the file untouched when the result
+parses worse than the original (`invalid_result`); a mutation with
+`args.expectedRevision` is refused when the file changed
+(`concurrent_source_modification`). `getCapabilities` lists the edge types as
+`edgeRoles`, for a consumer that asks which type a connection should be.
 
 ## Documentation
 

@@ -651,11 +651,11 @@ fn diagram_resolves_a_locked_cross_project_target_into_its_checkout() {
 }
 
 #[test]
-fn sidecar_answers_capabilities_export_and_refuses_mutations() {
+fn sidecar_answers_capabilities_export_and_refuses_unknown_ops() {
     let root = repository().join("tests/fixtures/cli-smoke/project");
     let file = root.join("docs/smoke.md");
     let input = format!(
-        "{{\"op\":\"ndf.getCapabilities\"}}\n{{\"file\":{file},\"op\":\"ndf.exportGraph\",\"args\":{{}}}}\n{{\"file\":{file},\"op\":\"ndf.createNode\",\"args\":{{}}}}\nnot json\n",
+        "{{\"op\":\"ndf.getCapabilities\"}}\n{{\"file\":{file},\"op\":\"ndf.exportGraph\",\"args\":{{}}}}\n{{\"file\":{file},\"op\":\"ndf.runWorkflow\",\"args\":{{}}}}\nnot json\n",
         file = serde_json::to_string(file.to_str().unwrap()).unwrap()
     );
 
@@ -676,14 +676,34 @@ fn sidecar_answers_capabilities_export_and_refuses_mutations() {
     let capabilities = &responses[0];
     assert_eq!(capabilities["status"], "ok");
     assert_eq!(capabilities["diagnostic"]["protocolVersion"], 2);
-    assert_eq!(
-        capabilities["diagnostic"]["supportedOps"],
-        serde_json::json!(["getCapabilities", "exportGraph"])
-    );
+    let ops = capabilities["diagnostic"]["supportedOps"]
+        .as_array()
+        .unwrap();
+    for op in [
+        "getCapabilities",
+        "exportGraph",
+        "listTaskTypes",
+        "listInstanceNames",
+        "createNode",
+        "renameNode",
+        "deleteNode",
+        "connect",
+        "deleteEdge",
+        "updateNodeParameter",
+    ] {
+        assert!(ops.contains(&Value::String(op.to_owned())), "{op}");
+    }
     assert_eq!(
         capabilities["diagnostic"]["features"]["sourceTruthEdits"],
-        false
+        true
     );
+    assert_eq!(
+        capabilities["diagnostic"]["features"]["expectedRevision"],
+        true
+    );
+    let roles = capabilities["diagnostic"]["edgeRoles"].as_array().unwrap();
+    assert_eq!(roles[0]["id"], "refines");
+    assert!(roles.iter().any(|role| role["id"] == "conforms-to"));
 
     let export = &responses[1];
     assert_eq!(export["status"], "ok");
@@ -832,4 +852,260 @@ fn diagram_draws_a_named_unit_and_its_trace_view() {
         stderr.contains("no document or clause named NOPE"),
         "{stderr}"
     );
+}
+
+/// One sidecar request, its parsed response.
+fn sidecar(root: &Path, request: Value) -> Value {
+    let (status, stdout, stderr) = raw(
+        root,
+        assert_cmd::cargo::cargo_bin!("ndf-sidecar"),
+        &[],
+        &format!("{request}\n"),
+    );
+    assert_eq!(status, 0, "{stderr}");
+    serde_json::from_str(stdout.trim()).unwrap()
+}
+
+#[test]
+fn sidecar_mutations_round_trip_on_a_copy_of_the_fixture() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    let source = repository().join("tests/fixtures/diagram/project");
+    fs::create_dir_all(root.join("docs")).unwrap();
+    for name in [
+        "ndf.yaml",
+        "ndf.lock",
+        "docs/forwarding.md",
+        "docs/options.md",
+    ] {
+        fs::copy(source.join(name), root.join(name)).unwrap();
+    }
+    let file = root.join("docs/forwarding.md");
+    let file_text = file.to_str().unwrap();
+    let original = fs::read_to_string(&file).unwrap();
+    let request = |op: &str, args: Value| serde_json::json!({ "file": file_text, "op": format!("ndf.{op}"), "args": args });
+
+    // The listings the palette asks for.
+    let names = sidecar(
+        root,
+        request(
+            "listInstanceNames",
+            serde_json::json!({ "workflow": "DOC-FORWARDING" }),
+        ),
+    );
+    assert_eq!(names["diagnostic"]["names"][0], "Forwarding intent");
+    let types = sidecar(root, request("listTaskTypes", serde_json::json!({})));
+    assert_eq!(types["diagnostic"]["types"].as_array().unwrap().len(), 13);
+    let instances = sidecar(
+        root,
+        request("listWorkflowInstances", serde_json::json!({})),
+    );
+    assert_eq!(
+        instances["diagnostic"]["candidates"][0]["name"],
+        "DOC-FORWARDING"
+    );
+
+    // A clause: the next id of the prefix the document uses, tbd and draft.
+    let created = sidecar(
+        root,
+        request(
+            "createNode",
+            serde_json::json!({
+                "workflow": "DOC-FORWARDING", "type": "requirement", "name": "Admission latency", "params": { "refinement": "L1" }
+            }),
+        ),
+    );
+    assert_eq!(created["status"], "ok", "{created}");
+    assert_eq!(created["diagnostic"]["id"], "FWD-ADM-003");
+    assert_eq!(created["revision"].as_str().unwrap().len(), 64);
+    let text = fs::read_to_string(&file).unwrap();
+    assert!(text.ends_with(
+        "## Admission latency {#FWD-ADM-003}\n<!-- ndf: kind=requirement modality=tbd refinement=L1 status=draft -->\n\n"
+    ), "{text}");
+
+    // Edges: by title, the role named; the default role when none is.
+    let connected = sidecar(
+        root,
+        request(
+            "connect",
+            serde_json::json!({
+                "workflow": "DOC-FORWARDING",
+                "from_port": { "type": "actor", "actor": "Admission latency", "port": "out" },
+                "to_port": { "type": "actor", "actor": "Forwarding intent", "port": "in" },
+                "role": "refines"
+            }),
+        ),
+    );
+    assert_eq!(connected["status"], "ok", "{connected}");
+    assert_eq!(connected["diagnostic"]["target"], "FWD-ADM-000");
+    let by_default = sidecar(
+        root,
+        request(
+            "connect",
+            serde_json::json!({
+                "from_port": "Admission latency.out", "to_port": "Admission buffer depth.in"
+            }),
+        ),
+    );
+    assert_eq!(by_default["diagnostic"]["role"], "references");
+    assert_eq!(by_default["diagnostic"]["target"], "PRM-BUF-001");
+    let twice = sidecar(
+        root,
+        request(
+            "connect",
+            serde_json::json!({
+                "from_port": "FWD-ADM-003.out", "to_port": "FWD-ADM-000.in", "role": "refines"
+            }),
+        ),
+    );
+    assert_eq!(twice["diagnostic"]["code"], "edge_exists");
+
+    // A field; a value the parser refuses leaves the file as it was.
+    let set = sidecar(
+        root,
+        request(
+            "updateNodeParameter",
+            serde_json::json!({
+                "entity": "Admission latency", "parameterName": "modality", "newValue": "must"
+            }),
+        ),
+    );
+    assert_eq!(set["status"], "ok", "{set}");
+    let before_refusal = fs::read_to_string(&file).unwrap();
+    let refused = sidecar(
+        root,
+        request(
+            "updateNodeParameter",
+            serde_json::json!({
+                "entity": "Admission latency", "parameterName": "kind", "newValue": "bogus"
+            }),
+        ),
+    );
+    assert_eq!(refused["status"], "error");
+    assert_eq!(refused["diagnostic"]["code"], "invalid_result");
+    assert_eq!(fs::read_to_string(&file).unwrap(), before_refusal);
+    assert!(before_refusal.contains(
+        "<!-- ndf: kind=requirement modality=must references=PRM-BUF-001 refinement=L1 refines=FWD-ADM-000 status=draft -->"
+    ), "{before_refusal}");
+
+    // A title; the id never changes.
+    let renamed = sidecar(
+        root,
+        request(
+            "renameNode",
+            serde_json::json!({
+                "old": "Admission latency", "new": "Admission latency bound"
+            }),
+        ),
+    );
+    assert_eq!(renamed["diagnostic"]["id"], "FWD-ADM-003");
+    assert!(
+        fs::read_to_string(&file)
+            .unwrap()
+            .contains("## Admission latency bound {#FWD-ADM-003}")
+    );
+
+    // A clause with dependents stays; the edges go first, by name or by id,
+    // the dangling one too.
+    let held = sidecar(
+        root,
+        request(
+            "deleteNode",
+            serde_json::json!({ "name": "Forwarding intent" }),
+        ),
+    );
+    assert_eq!(held["diagnostic"]["code"], "has_dependents");
+    assert_eq!(
+        held["diagnostic"]["dependents"],
+        serde_json::json!(["FWD-ADM-001 (refines)", "FWD-ADM-003 (refines)"])
+    );
+    let removed = sidecar(
+        root,
+        request(
+            "deleteEdge",
+            serde_json::json!({
+                "from_expr": "Admission latency bound.out", "to_expr": "Forwarding intent.in", "role": "refines"
+            }),
+        ),
+    );
+    assert_eq!(removed["status"], "ok", "{removed}");
+    let dangling = sidecar(
+        root,
+        request(
+            "deleteEdge",
+            serde_json::json!({
+                "from_expr": "Admission under pressure.out", "to_expr": "MISSING-001.in"
+            }),
+        ),
+    );
+    assert_eq!(dangling["status"], "ok", "{dangling}");
+    assert!(
+        !fs::read_to_string(&file)
+            .unwrap()
+            .contains("depends-on=MISSING-001")
+    );
+    let missing = sidecar(
+        root,
+        request(
+            "deleteEdge",
+            serde_json::json!({
+                "from_expr": "Admission under pressure.out", "to_expr": "MISSING-001.in"
+            }),
+        ),
+    );
+    assert_eq!(missing["diagnostic"]["code"], "edge_not_found");
+
+    // A stale revision is refused; the right one goes through.
+    let stale = sidecar(
+        root,
+        request(
+            "deleteNode",
+            serde_json::json!({ "name": "FWD-ADM-003", "expectedRevision": "0000" }),
+        ),
+    );
+    assert_eq!(
+        stale["diagnostic"]["code"],
+        "concurrent_source_modification"
+    );
+    assert_eq!(stale["diagnostic"]["expectedRevision"], "0000");
+    let revision = stale["revision"].as_str().unwrap().to_owned();
+    let deleted = sidecar(
+        root,
+        request(
+            "deleteNode",
+            serde_json::json!({ "name": "FWD-ADM-003", "expectedRevision": revision }),
+        ),
+    );
+    assert_eq!(deleted["status"], "ok", "{deleted}");
+    let unknown = sidecar(
+        root,
+        request("deleteNode", serde_json::json!({ "name": "Nobody" })),
+    );
+    assert_eq!(unknown["diagnostic"]["code"], "node_not_found");
+
+    // What is left is the original with the dangling edge gone (its line in
+    // the canonical order an edit writes), and the project checks clean: the
+    // clause that was added and removed left no trace.
+    let final_text = fs::read_to_string(&file).unwrap();
+    let expected: String = original
+        .split_inclusive('\n')
+        .map(|line| {
+            if !line.contains("depends-on=MISSING-001") {
+                return line.to_owned();
+            }
+            let inner = line
+                .trim()
+                .trim_start_matches("<!-- ndf:")
+                .trim_end_matches("-->");
+            let mut tokens: Vec<&str> = inner
+                .split_whitespace()
+                .filter(|token| *token != "depends-on=MISSING-001")
+                .collect();
+            tokens.sort_unstable();
+            format!("<!-- ndf: {} -->\n", tokens.join(" "))
+        })
+        .collect();
+    assert_eq!(final_text, expected);
+    let (status, payload) = ndf(root, &["check", "--root", root.to_str().unwrap()]);
+    assert_eq!(status, 0, "{payload}");
 }

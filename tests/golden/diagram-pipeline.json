@@ -190,6 +190,28 @@
             "refinement": "L1",
             "status": "active"
           },
+          "parameters": [
+            {
+              "name": "modality",
+              "value": "must"
+            },
+            {
+              "name": "refinement",
+              "value": "L1"
+            },
+            {
+              "name": "domain",
+              "value": "core"
+            },
+            {
+              "name": "status",
+              "value": "active"
+            },
+            {
+              "name": "owner",
+              "value": "core"
+            }
+          ],
           "source": {
             "file": "<root>/docs/pipeline.md",
             "line": 14
@@ -321,6 +343,28 @@
             "refinement": "L2",
             "status": "active"
           },
+          "parameters": [
+            {
+              "name": "modality",
+              "value": "must"
+            },
+            {
+              "name": "refinement",
+              "value": "L2"
+            },
+            {
+              "name": "domain",
+              "value": "core"
+            },
+            {
+              "name": "status",
+              "value": "active"
+            },
+            {
+              "name": "owner",
+              "value": "core"
+            }
+          ],
           "source": {
             "file": "<root>/docs/pipeline.md",
             "line": 19
@@ -461,6 +505,28 @@
             "refinement": "L1",
             "status": "active"
           },
+          "parameters": [
+            {
+              "name": "modality",
+              "value": "must"
+            },
+            {
+              "name": "refinement",
+              "value": "L1"
+            },
+            {
+              "name": "domain",
+              "value": "core"
+            },
+            {
+              "name": "status",
+              "value": "active"
+            },
+            {
+              "name": "owner",
+              "value": "core"
+            }
+          ],
           "source": {
             "file": "<root>/docs/pipeline.md",
             "line": 24
@@ -616,6 +682,28 @@
             "refinement": "L1",
             "status": "draft"
           },
+          "parameters": [
+            {
+              "name": "modality",
+              "value": "tbd"
+            },
+            {
+              "name": "refinement",
+              "value": "L1"
+            },
+            {
+              "name": "domain",
+              "value": "core"
+            },
+            {
+              "name": "status",
+              "value": "draft"
+            },
+            {
+              "name": "owner",
+              "value": "core"
+            }
+          ],
           "source": {
             "file": "<root>/docs/pipeline.md",
             "line": 29

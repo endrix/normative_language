@@ -96,7 +96,7 @@ fn sort_metadata(content: &str) -> String {
         .collect()
 }
 
-fn sort_metadata_line(line: &str) -> String {
+pub(crate) fn sort_metadata_line(line: &str) -> String {
     let (body, newline) = line
         .strip_suffix('\n')
         .map_or((line, ""), |body| (body, "\n"));

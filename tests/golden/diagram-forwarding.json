@@ -212,6 +212,28 @@
             "refinement": "L0",
             "status": "active"
           },
+          "parameters": [
+            {
+              "name": "modality",
+              "value": ""
+            },
+            {
+              "name": "refinement",
+              "value": "L0"
+            },
+            {
+              "name": "domain",
+              "value": "forwarding"
+            },
+            {
+              "name": "status",
+              "value": "active"
+            },
+            {
+              "name": "owner",
+              "value": "forwarding"
+            }
+          ],
           "source": {
             "file": "<root>/docs/forwarding.md",
             "line": 10
@@ -343,6 +365,28 @@
             "refinement": "L1",
             "status": "active"
           },
+          "parameters": [
+            {
+              "name": "modality",
+              "value": "must"
+            },
+            {
+              "name": "refinement",
+              "value": "L1"
+            },
+            {
+              "name": "domain",
+              "value": "forwarding"
+            },
+            {
+              "name": "status",
+              "value": "active"
+            },
+            {
+              "name": "owner",
+              "value": "forwarding"
+            }
+          ],
           "source": {
             "file": "<root>/docs/forwarding.md",
             "line": 16
@@ -487,6 +531,28 @@
             "refinement": "L1",
             "status": "draft"
           },
+          "parameters": [
+            {
+              "name": "modality",
+              "value": "should"
+            },
+            {
+              "name": "refinement",
+              "value": "L1"
+            },
+            {
+              "name": "domain",
+              "value": "forwarding"
+            },
+            {
+              "name": "status",
+              "value": "draft"
+            },
+            {
+              "name": "owner",
+              "value": "forwarding"
+            }
+          ],
           "source": {
             "file": "<root>/docs/forwarding.md",
             "line": 22
@@ -596,6 +662,28 @@
             "owner": "forwarding",
             "status": "open"
           },
+          "parameters": [
+            {
+              "name": "modality",
+              "value": ""
+            },
+            {
+              "name": "refinement",
+              "value": ""
+            },
+            {
+              "name": "domain",
+              "value": "forwarding"
+            },
+            {
+              "name": "status",
+              "value": "open"
+            },
+            {
+              "name": "owner",
+              "value": "forwarding"
+            }
+          ],
           "source": {
             "file": "<root>/docs/forwarding.md",
             "line": 27
@@ -727,6 +815,28 @@
             "refinement": "L3",
             "status": "active"
           },
+          "parameters": [
+            {
+              "name": "modality",
+              "value": "must"
+            },
+            {
+              "name": "refinement",
+              "value": "L3"
+            },
+            {
+              "name": "domain",
+              "value": "forwarding"
+            },
+            {
+              "name": "status",
+              "value": "active"
+            },
+            {
+              "name": "owner",
+              "value": "forwarding"
+            }
+          ],
           "source": {
             "file": "<root>/docs/forwarding.md",
             "line": 32

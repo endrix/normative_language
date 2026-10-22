@@ -163,6 +163,28 @@
             "refinement": "L2",
             "status": "draft"
           },
+          "parameters": [
+            {
+              "name": "modality",
+              "value": "tbd"
+            },
+            {
+              "name": "refinement",
+              "value": "L2"
+            },
+            {
+              "name": "domain",
+              "value": "forwarding"
+            },
+            {
+              "name": "status",
+              "value": "draft"
+            },
+            {
+              "name": "owner",
+              "value": "forwarding"
+            }
+          ],
           "source": {
             "file": "<root>/docs/options.md",
             "line": 10
@@ -298,6 +320,28 @@
             "refinement": "L2",
             "status": "draft"
           },
+          "parameters": [
+            {
+              "name": "modality",
+              "value": "tbd"
+            },
+            {
+              "name": "refinement",
+              "value": "L2"
+            },
+            {
+              "name": "domain",
+              "value": "forwarding"
+            },
+            {
+              "name": "status",
+              "value": "draft"
+            },
+            {
+              "name": "owner",
+              "value": "forwarding"
+            }
+          ],
           "source": {
             "file": "<root>/docs/options.md",
             "line": 16

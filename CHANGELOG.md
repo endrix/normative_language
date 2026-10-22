@@ -20,6 +20,12 @@ All notable changes to NDF are documented here.
   clause outside the document drills into the document that holds it, a
   target in a locked graph dependency is drawn with its source in that
   checkout. A project without dependencies is drawn without an `ndf.lock`.
+  `ndf-sidecar` edits documents: `createNode`, `renameNode`, `deleteNode`,
+  `connect`, `deleteEdge` and `updateNodeParameter`, each computed on the text,
+  re-parsed before it is written and refused when the result parses worse,
+  with `expectedRevision` conflicts; its capabilities list the edge types as
+  `edgeRoles`. `ndf_compiler::edit` holds the text operations and
+  `markdown::parse_markdown_text` parses a document from text.
 - Standalone Rust 1.94.0 knowledge compiler and versioned JSON CLI.
 - Canonical graph IR 0.1 with project-scoped `ndf://` identities.
 - Strict Markdown, PTO ASL, repository, test, and evidence adapters.
