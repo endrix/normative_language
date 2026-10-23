@@ -19,6 +19,8 @@
 //! normative text, not a place for links.
 
 use std::cell::OnceCell;
+use std::collections::HashMap;
+use std::ffi::{OsStr, OsString};
 use std::path::{Component, Path, PathBuf};
 
 use walkdir::WalkDir;
@@ -61,27 +63,26 @@ pub fn parse_file_ref(text: &str) -> Option<FileRef<'_>> {
     if text.is_empty() || text.contains(char::is_whitespace) || text.contains("://") {
         return None;
     }
-    let segment_start = text.rfind('/').map_or(0, |slash| slash + 1);
-    let dot = segment_start + text[segment_start..].find('.')?;
-    if dot == segment_start {
+    // The path runs up to the first character a path does not hold (the `:`,
+    // `::` or `#` of a place); its extension follows the last dot of its last
+    // segment, so `HL.LWUP.asl` and `x.test.ts` are files.
+    let extension_end = text
+        .find(|c: char| !(c.is_ascii_alphanumeric() || "_./-+".contains(c)))
+        .unwrap_or(text.len());
+    let path = &text[..extension_end];
+    let segment_start = path.rfind('/').map_or(0, |slash| slash + 1);
+    let dot = segment_start + path[segment_start..].rfind('.')?;
+    if path[segment_start..dot].trim_start_matches('.').is_empty() {
         // `.py`, `.gitignore`: no name before the extension.
         return None;
     }
-    let extension_end = dot
-        + 1
-        + text[dot + 1..]
-            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
-            .unwrap_or(text.len() - dot - 1);
-    let extension = &text[dot + 1..extension_end];
-    if extension.is_empty() || extension.len() > 10 || extension.chars().all(|c| c.is_ascii_digit())
-    {
-        return None;
-    }
-    let path = &text[..extension_end];
-    if path == extension
-        || !path
+    let extension = &path[dot + 1..];
+    if extension.is_empty()
+        || extension.len() > 10
+        || extension.chars().all(|c| c.is_ascii_digit())
+        || !extension
             .chars()
-            .all(|c| c.is_ascii_alphanumeric() || "_./-+".contains(c))
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
     {
         return None;
     }
@@ -123,10 +124,11 @@ pub fn has_file_extension(path: &str) -> bool {
     })
 }
 
-/// The files of a project, indexed once, for the references its clauses make.
+/// The files of a project, indexed once (by file name, the last part of
+/// every reference), for the references its clauses make.
 pub struct FileIndex {
     root: PathBuf,
-    files: OnceCell<Vec<PathBuf>>,
+    files: OnceCell<HashMap<OsString, Vec<PathBuf>>>,
 }
 
 impl FileIndex {
@@ -137,9 +139,10 @@ impl FileIndex {
         }
     }
 
-    fn files(&self) -> &[PathBuf] {
+    fn files(&self) -> &HashMap<OsString, Vec<PathBuf>> {
         self.files.get_or_init(|| {
-            WalkDir::new(&self.root)
+            let mut by_name: HashMap<OsString, Vec<PathBuf>> = HashMap::new();
+            for path in WalkDir::new(&self.root)
                 .into_iter()
                 .filter_entry(|entry| {
                     let name = entry.file_name().to_string_lossy();
@@ -152,7 +155,12 @@ impl FileIndex {
                 .filter(|entry| entry.file_type().is_file())
                 .take(MAX_INDEXED_FILES)
                 .map(|entry| entry.into_path())
-                .collect()
+            {
+                if let Some(name) = path.file_name() {
+                    by_name.entry(name.to_owned()).or_default().push(path);
+                }
+            }
+            by_name
         })
     }
 
@@ -185,8 +193,11 @@ impl FileIndex {
         if trailing.is_empty() {
             return None;
         }
+        let name = OsStr::new(trailing.last().expect("a non-empty trailing path"));
         self.files()
-            .iter()
+            .get(name)
+            .into_iter()
+            .flatten()
             .filter(|file| {
                 let parts: Vec<_> = file.components().rev().take(trailing.len()).collect();
                 parts.len() == trailing.len()
@@ -458,6 +469,15 @@ mod tests {
             Some("latched_store")
         );
         assert_eq!(parse_file_ref("gen/a.py").map(|r| r.path), Some("gen/a.py"));
+        // A name with dots of its own: the extension is the last one.
+        assert_eq!(
+            parse_file_ref("asl/scalar/agu/HL.LWUP.asl").map(|r| r.path),
+            Some("asl/scalar/agu/HL.LWUP.asl")
+        );
+        assert_eq!(
+            parse_file_ref("src/x.test.ts:4").map(|r| (r.path, r.line)),
+            Some(("src/x.test.ts", Some(4)))
+        );
     }
 
     #[test]
@@ -468,6 +488,7 @@ mod tests {
             "a b.py",
             "https://x.org/a.py",
             ".py",
+            ".gitignore",
             "x.py:abc",
             "",
         ] {
