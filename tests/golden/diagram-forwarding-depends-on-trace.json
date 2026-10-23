@@ -136,6 +136,11 @@
               "value": "forwarding"
             },
             {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- ← refines [FWD-ADM-001](#node:scope:root:FWD-ADM-001 \"<root>/docs/forwarding.md#L16\") Frame admission"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "The switch admits a frame to the forwarding pipeline only when it is well\nformed, and drops it otherwise."
@@ -151,23 +156,55 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": ""
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": "L0"
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "active"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             }
           ],
@@ -288,6 +325,11 @@
               "value": "forwarding"
             },
             {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- depends-on → [PRM-BUF-001](#node:scope:root:PRM-BUF-001 \"<root>/docs/options.md#L10\") Admission buffer depth\n- refines → [FWD-ADM-000](#node:scope:root:FWD-ADM-000 \"<root>/docs/forwarding.md#L10\") Forwarding intent\n- ← conflicts-with [FWD-ADM-002](#node:scope:root:FWD-ADM-002 \"<root>/docs/forwarding.md#L22\") Admission under pressure\n- ← verifies [VER-ADM-001](#node:scope:root:VER-ADM-001 \"<root>/docs/forwarding.md#L32\") Admission conformance"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "A frame MUST be admitted only if it passes FCS validation ([[MISSING-001]])\nand fits the admission buffer."
@@ -304,23 +346,55 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": "must"
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": "L1"
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "active"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             }
           ],
@@ -453,6 +527,11 @@
               "value": "forwarding"
             },
             {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- conflicts-with → [FWD-ADM-001](#node:scope:root:FWD-ADM-001 \"<root>/docs/forwarding.md#L16\") Frame admission\n- depends-on → `MISSING-001`\n- ← blocks [Q-001](#node:scope:root:Q-001 \"<root>/docs/forwarding.md#L27\") Which admission policy wins"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "Under back pressure the switch SHOULD admit every frame and defer the check."
@@ -470,23 +549,55 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": "should"
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": "L1"
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "draft"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             }
           ],
@@ -587,6 +698,11 @@
               "value": "forwarding"
             },
             {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- blocks → [FWD-ADM-002](#node:scope:root:FWD-ADM-002 \"<root>/docs/forwarding.md#L22\") Admission under pressure"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "Admission under pressure contradicts frame admission; one of them has to go."
@@ -601,23 +717,55 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": ""
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": ""
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "open"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             }
           ],
@@ -738,6 +886,11 @@
               "value": "forwarding"
             },
             {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- verifies → [FWD-ADM-001](#node:scope:root:FWD-ADM-001 \"<root>/docs/forwarding.md#L16\") Frame admission"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "A directed test MUST present one malformed frame per thousand and observe\nevery one of them dropped."
@@ -754,23 +907,55 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": "must"
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": "L3"
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "active"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             }
           ],
@@ -895,6 +1080,11 @@
               "value": "forwarding"
             },
             {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- couples-with → [PRM-THR-001](#node:scope:root:PRM-THR-001 \"<root>/docs/options.md#L16\") Concurrent threads\n- ← depends-on [FWD-ADM-001](#node:scope:root:FWD-ADM-001 \"<root>/docs/forwarding.md#L16\") Frame admission"
+            },
+            {
               "label": "Document",
               "value": "DOC-OPTIONS"
             },
@@ -917,23 +1107,55 @@
           "networkInstance": true,
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": "tbd"
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": "L2"
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "draft"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             }
           ],

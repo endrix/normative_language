@@ -149,6 +149,11 @@
               "value": "forwarding"
             },
             {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- couples-with → [PRM-THR-001](#node:scope:root:PRM-THR-001 \"<root>/docs/options.md#L16\") Concurrent threads\n- ← depends-on [FWD-ADM-001](#node:scope:root:FWD-ADM-001 \"<root>/docs/forwarding.md#L16\") Frame admission"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "The admission buffer depth is a design-space parameter: default 64 frames,\nexplored over 32 to 128."
@@ -165,23 +170,55 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": "tbd"
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": "L2"
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "draft"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             }
           ],
@@ -306,6 +343,11 @@
               "value": "forwarding"
             },
             {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- ← couples-with [PRM-BUF-001](#node:scope:root:PRM-BUF-001 \"<root>/docs/options.md#L10\") Admission buffer depth"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "The number of concurrent forwarding threads trades off against the buffer\ndepth under a fixed memory budget."
@@ -322,23 +364,55 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": "tbd"
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": "L2"
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "draft"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "forwarding"
+              ],
               "value": "forwarding"
             }
           ],
@@ -458,6 +532,11 @@
             {
               "label": "Owner",
               "value": "forwarding"
+            },
+            {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- depends-on → [PRM-BUF-001](#node:scope:root:PRM-BUF-001 \"<root>/docs/options.md#L10\") Admission buffer depth\n- refines → [FWD-ADM-000](#node:scope:root:FWD-ADM-000 \"<root>/docs/forwarding.md#L10\") Forwarding intent\n- ← conflicts-with [FWD-ADM-002](#node:scope:root:FWD-ADM-002 \"<root>/docs/forwarding.md#L22\") Admission under pressure\n- ← verifies [VER-ADM-001](#node:scope:root:VER-ADM-001 \"<root>/docs/forwarding.md#L32\") Admission conformance"
             },
             {
               "label": "Document",

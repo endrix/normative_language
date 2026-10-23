@@ -176,6 +176,11 @@
               "value": "core"
             },
             {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- ← refines [PIPE-ISSUE-010](#node:scope:root:PIPE-ISSUE-010 \"<root>/docs/pipeline.md#L19\") Issue mechanism"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "The core MUST issue no more than two instructions per cycle."
@@ -192,23 +197,55 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": "must"
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": "L1"
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "core"
+              ],
               "value": "core"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "active"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "core"
+              ],
               "value": "core"
             }
           ],
@@ -329,6 +366,11 @@
               "value": "core"
             },
             {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- refines → [PIPE-ISSUE-001](#node:scope:root:PIPE-ISSUE-001 \"<root>/docs/pipeline.md#L14\") Issue contract"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "Two issue slots MUST arbitrate oldest-ready first."
@@ -345,23 +387,55 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": "must"
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": "L2"
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "core"
+              ],
               "value": "core"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "active"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "core"
+              ],
               "value": "core"
             }
           ],
@@ -490,6 +564,11 @@
               "value": "core"
             },
             {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- conforms-to → `ndf://pto-spec/PTO-INST-TILE-TLOAD`"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "The pipeline MUST preserve the PTO load contract."
@@ -507,23 +586,55 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": "must"
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": "L1"
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "core"
+              ],
               "value": "core"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "active"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "core"
+              ],
               "value": "core"
             }
           ],
@@ -664,6 +775,11 @@
               "value": "absent"
             },
             {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- tracks → `ndf://pto-spec/PTO-INST-TILE-PEXT`"
+            },
+            {
               "label": "Body",
               "markdown": true,
               "value": "The extension remains outside the accepted PTO release."
@@ -684,23 +800,55 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": "tbd"
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": "L1"
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "core"
+              ],
               "value": "core"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "draft"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "core"
+              ],
               "value": "core"
             }
           ],

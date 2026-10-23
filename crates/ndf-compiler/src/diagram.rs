@@ -32,6 +32,10 @@ use serde_json::{Map, Value, json};
 
 use crate::CompilerError;
 use crate::dependencies::DependencyGraph;
+use crate::diagram_links::{
+    FileIndex, LinkTarget, has_file_extension, link_markdown, link_path, parse_file_ref,
+    symbol_line,
+};
 use crate::manifest::ProjectManifest;
 
 /// The document version the platform's reader expects.
@@ -384,6 +388,20 @@ struct Project<'a> {
     diagnostics_by_subject: BTreeMap<&'a NodeId, Vec<&'a Diagnostic>>,
     /// Every edge touching a node, by either end.
     edges_by_end: BTreeMap<&'a NodeId, Vec<usize>>,
+    /// The project's files, for the ones its clauses name.
+    files: FileIndex,
+    /// The domains the manifest declares, offered when a domain is edited.
+    domains: Vec<String>,
+    /// The values the project's clauses already use, offered as suggestions.
+    used: UsedValues,
+}
+
+/// The values a project's clauses already give the free-text fields.
+#[derive(Default)]
+struct UsedValues {
+    refinements: BTreeSet<String>,
+    domains: BTreeSet<String>,
+    owners: BTreeSet<String>,
 }
 
 struct Dependency<'a> {
@@ -435,8 +453,18 @@ impl<'a> Project<'a> {
                 )
             })
             .collect();
+        let root = canonical(request.project_root)?;
+        let mut used = UsedValues::default();
+        for node in &graph.nodes {
+            used.refinements.extend(node.refinement.clone());
+            used.domains.extend(node.domain.clone());
+            used.owners.extend(node.owner.clone());
+        }
         Ok(Self {
-            root: canonical(request.project_root)?,
+            files: FileIndex::new(&root),
+            domains: request.manifest.domains.clone(),
+            used,
+            root,
             id: request.manifest.project.as_str(),
             graph,
             nodes_by_id: graph.nodes.iter().map(|node| (&node.id, node)).collect(),
@@ -920,7 +948,10 @@ impl<'a> Project<'a> {
             definition_annotations(node),
         );
         meta.insert("ndf".to_owned(), ndf_facts(node, true));
-        let mut facts = facts_list(node);
+        if let Some(open) = self.open_target(node) {
+            meta.insert("open".to_owned(), open);
+        }
+        let mut facts = self.clause_facts(node);
         if placement.external {
             meta.insert("external".to_owned(), Value::Bool(true));
             meta.insert("referencedSource".to_owned(), location.clone());
@@ -955,7 +986,7 @@ impl<'a> Project<'a> {
         if node.id.project_id() == self.id && !placement.external {
             // The fields a panel edits in place (`updateNodeParameter`): the
             // canonical ones, each with its value or empty when unset.
-            meta.insert("parameters".to_owned(), parameters(node));
+            meta.insert("parameters".to_owned(), self.parameters(node));
         }
         if node.id.project_id() == self.id
             && let Some(diagnostics) = self.diagnostics_by_subject.get(&node.id)
@@ -1306,6 +1337,279 @@ impl<'a> Project<'a> {
     fn absolute(&self, relative: &str) -> String {
         absolute_in(&self.root, relative)
     }
+
+    // -- what a panel shows of a clause --------------------------------------
+
+    /// A clause of the project or of a dependency, with the root its source
+    /// path is relative to.
+    fn find_node(&self, id: &NodeId) -> Option<(&Path, &'a Node)> {
+        if let Some(node) = self.nodes_by_id.get(id) {
+            return Some((self.root.as_path(), *node));
+        }
+        let dependency = self.dependencies.get(id.project_id())?;
+        dependency
+            .nodes_by_id
+            .get(id)
+            .map(|node| (dependency.root, *node))
+    }
+
+    /// Where a link to a clause goes: its node in the diagram, and its file
+    /// and line for when the diagram does not draw it.
+    fn clause_target(&self, id: &NodeId) -> Option<LinkTarget> {
+        let (root, node) = self.find_node(id)?;
+        let file = PathBuf::from(absolute_in(root, &node.source.path));
+        Some(LinkTarget {
+            href: format!("#{}", node_id(id, self.id)),
+            title: Some(format!("{}#L{}", link_path(&file), node.source.line)),
+        })
+    }
+
+    /// Where a code span that names a file goes, read from a document in
+    /// `base_dir`: the file the project holds, at the line or symbol named;
+    /// else, for a path with a known extension, the text itself, for the
+    /// editor to look for.
+    fn file_target(&self, base_dir: &Path, text: &str) -> Option<LinkTarget> {
+        let reference = parse_file_ref(text)?;
+        let Some(file) = self.files.resolve(base_dir, reference.path) else {
+            return has_file_extension(reference.path).then(|| LinkTarget {
+                href: text.to_owned(),
+                title: None,
+            });
+        };
+        let line = reference.line.or_else(|| {
+            reference
+                .symbol
+                .and_then(|symbol| symbol_line(&file, symbol))
+        });
+        let place = match (line, reference.end_line) {
+            (Some(start), Some(end)) => format!("#L{start}-L{end}"),
+            (Some(start), None) => format!("#L{start}"),
+            _ => String::new(),
+        };
+        Some(LinkTarget {
+            href: format!("{}{place}", link_path(&file)),
+            title: None,
+        })
+    }
+
+    /// The folder of the document a clause is written in.
+    fn base_dir(&self, node: &Node) -> PathBuf {
+        let root = self
+            .find_node(&node.id)
+            .map_or(self.root.as_path(), |(root, _)| root);
+        let file = PathBuf::from(absolute_in(root, &node.source.path));
+        file.parent()
+            .map_or_else(|| self.root.clone(), Path::to_path_buf)
+    }
+
+    /// Markdown with the clause's mentions and file references made links.
+    fn linked(&self, node: &Node, text: &str) -> String {
+        let base_dir = self.base_dir(node);
+        link_markdown(
+            text,
+            |mention| {
+                NodeId::parse(mention.trim(), Some(node.id.project_id()))
+                    .ok()
+                    .and_then(|id| self.clause_target(&id))
+            },
+            |code| self.file_target(&base_dir, code),
+        )
+    }
+
+    /// The file a clause stands for, when its title names one the project
+    /// holds (a `source` clause's `` `path::Symbol` ``): `{ file, line }`.
+    fn open_target(&self, node: &Node) -> Option<Value> {
+        let title = node.title.trim().trim_matches('`');
+        let reference = parse_file_ref(title)?;
+        let file = self.files.resolve(&self.base_dir(node), reference.path)?;
+        let line = reference.line.or_else(|| {
+            reference
+                .symbol
+                .and_then(|symbol| symbol_line(&file, symbol))
+        });
+        let mut open = json!({ "file": file.to_string_lossy() });
+        if let Some(line) = line {
+            open["line"] = Value::from(line);
+        }
+        Some(open)
+    }
+
+    /// The clause's typed edges, each end a link: `refines → X Title` for its
+    /// own, `← verifies Y Title` for the ones that point at it.
+    fn trace_fact(&self, node: &Node) -> Option<Value> {
+        let mut outgoing = Vec::new();
+        let mut incoming = Vec::new();
+        for &index in self
+            .edges_by_end
+            .get(&node.id)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+        {
+            let edge = &self.graph.edges[index];
+            let (other, list) = if edge.source == node.id {
+                (&edge.target, &mut outgoing)
+            } else {
+                (&edge.source, &mut incoming)
+            };
+            let title = self
+                .find_node(other)
+                .map(|(_, other)| other.title.clone())
+                .unwrap_or_default();
+            let name = if other.project_id() == self.id {
+                other.local_id().to_owned()
+            } else {
+                other.uri()
+            };
+            let target = match self.clause_target(other) {
+                Some(target) => format!(
+                    "[{name}]({} \"{}\")",
+                    target.href,
+                    target.title.unwrap_or_default()
+                ),
+                None => format!("`{name}`"),
+            };
+            list.push((edge.edge_type.clone(), target, title));
+        }
+        if outgoing.is_empty() && incoming.is_empty() {
+            return None;
+        }
+        outgoing.sort();
+        incoming.sort();
+        let lines: Vec<String> = outgoing
+            .into_iter()
+            .map(|(kind, target, title)| format!("- {kind} → {target} {title}"))
+            .chain(
+                incoming
+                    .into_iter()
+                    .map(|(kind, target, title)| format!("- ← {kind} {target} {title}")),
+            )
+            .map(|line| line.trim_end().to_owned())
+            .collect();
+        Some(json!({ "label": "Trace", "value": lines.join("\n"), "markdown": true }))
+    }
+
+    /// The facts a property panel lists for a clause, in reading order: what
+    /// it is, its fields and attributes (a file one a link), the clauses it is
+    /// tied to, then its body with its mentions and files as links.
+    fn clause_facts(&self, node: &Node) -> Value {
+        let mut facts = Vec::new();
+        let mut push = |label: &str, value: &str| {
+            facts.push(json!({ "label": label, "value": value }));
+        };
+        push("ID", &node.id.uri());
+        push("Kind", &kind_name(node.kind));
+        if let Some(modality) = node.modality.as_ref().and_then(enum_name) {
+            push("Modality", &modality);
+        }
+        if let Some(refinement) = &node.refinement {
+            push("Refinement", refinement);
+        }
+        if let Some(domain) = &node.domain {
+            push("Domain", domain);
+        }
+        if let Some(status) = enum_name(&node.status) {
+            push("Status", &status);
+        }
+        if let Some(owner) = &node.owner {
+            push("Owner", owner);
+        }
+        let base_dir = self.base_dir(node);
+        for (key, value) in &node.attributes {
+            match self.file_target(&base_dir, value) {
+                Some(target) => facts.push(json!({
+                    "label": key,
+                    "value": format!("[`{value}`]({})", target.href),
+                    "markdown": true
+                })),
+                None => facts.push(json!({ "label": key, "value": value })),
+            }
+        }
+        if let Some(open) = self.open_target(node)
+            && let Some(file) = open["file"].as_str()
+        {
+            let place = open["line"]
+                .as_u64()
+                .map(|line| format!("#L{line}"))
+                .unwrap_or_default();
+            facts.push(json!({
+                "label": "File",
+                "value": format!("[`{}`]({}{place})", node.title.trim().trim_matches('`'), link_path(Path::new(file))),
+                "markdown": true
+            }));
+        }
+        facts.extend(self.trace_fact(node));
+        if !node.body.trim().is_empty() {
+            facts.push(json!({ "label": "Body", "value": self.linked(node, &node.body), "markdown": true }));
+        }
+        Value::Array(facts)
+    }
+
+    /// The canonical fields as a panel's editable parameters: name and value
+    /// (empty when unset), the closed ones with their `choices`, the open ones
+    /// with what the manifest and the project's clauses already use as
+    /// `suggestions`.
+    fn parameters(&self, node: &Node) -> Value {
+        let mut refinements: BTreeSet<String> = ["L0", "L1", "L2", "L3"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect();
+        refinements.extend(self.used.refinements.iter().cloned());
+        let mut domains: BTreeSet<String> = self.domains.iter().cloned().collect();
+        domains.extend(self.used.domains.iter().cloned());
+        let field = |name: &str, value: Option<String>| json!({ "name": name, "value": value.unwrap_or_default(), "editable": true });
+        let with = |mut field: Value, key: &str, values: Vec<String>| {
+            if !values.is_empty() {
+                field[key] = json!(values);
+            }
+            field
+        };
+        Value::Array(vec![
+            with(
+                field("modality", node.modality.as_ref().and_then(enum_name)),
+                "choices",
+                [
+                    Modality::Must,
+                    Modality::Should,
+                    Modality::May,
+                    Modality::Tbd,
+                ]
+                .iter()
+                .filter_map(enum_name)
+                .collect(),
+            ),
+            with(
+                field("refinement", node.refinement.clone()),
+                "suggestions",
+                refinements.into_iter().collect(),
+            ),
+            with(
+                field("domain", node.domain.clone()),
+                "suggestions",
+                domains.into_iter().collect(),
+            ),
+            with(
+                field("status", enum_name(&node.status)),
+                "choices",
+                [
+                    LifecycleStatus::Draft,
+                    LifecycleStatus::Active,
+                    LifecycleStatus::Deprecated,
+                    LifecycleStatus::Superseded,
+                    LifecycleStatus::Retired,
+                    LifecycleStatus::Open,
+                    LifecycleStatus::Resolved,
+                ]
+                .iter()
+                .filter_map(enum_name)
+                .collect(),
+            ),
+            with(
+                field("owner", node.owner.clone()),
+                "suggestions",
+                self.used.owners.iter().cloned().collect(),
+            ),
+        ])
+    }
 }
 
 /// The containers a grouping puts clauses in, in first-seen order of their
@@ -1509,51 +1813,6 @@ fn ndf_facts(node: &Node, with_attributes: bool) -> Value {
         );
     }
     Value::Object(facts)
-}
-
-/// The canonical fields as a panel's editable parameters: name and value,
-/// the value empty for a field the clause does not set yet.
-fn parameters(node: &Node) -> Value {
-    let field = |name: &str, value: Option<String>| json!({ "name": name, "value": value.unwrap_or_default() });
-    Value::Array(vec![
-        field("modality", node.modality.as_ref().and_then(enum_name)),
-        field("refinement", node.refinement.clone()),
-        field("domain", node.domain.clone()),
-        field("status", enum_name(&node.status)),
-        field("owner", node.owner.clone()),
-    ])
-}
-
-/// The facts a property panel lists for a clause, in reading order.
-fn facts_list(node: &Node) -> Value {
-    let mut facts = Vec::new();
-    let mut push = |label: &str, value: &str| {
-        facts.push(json!({ "label": label, "value": value }));
-    };
-    push("ID", &node.id.uri());
-    push("Kind", &kind_name(node.kind));
-    if let Some(modality) = node.modality.as_ref().and_then(enum_name) {
-        push("Modality", &modality);
-    }
-    if let Some(refinement) = &node.refinement {
-        push("Refinement", refinement);
-    }
-    if let Some(domain) = &node.domain {
-        push("Domain", domain);
-    }
-    if let Some(status) = enum_name(&node.status) {
-        push("Status", &status);
-    }
-    if let Some(owner) = &node.owner {
-        push("Owner", owner);
-    }
-    for (key, value) in &node.attributes {
-        push(key, value);
-    }
-    if !node.body.trim().is_empty() {
-        facts.push(json!({ "label": "Body", "value": node.body, "markdown": true }));
-    }
-    Value::Array(facts)
 }
 
 /// The annotations a product's node families and the panel's Annotations

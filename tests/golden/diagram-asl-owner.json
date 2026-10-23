@@ -156,6 +156,11 @@
             {
               "label": "surface",
               "value": "arch"
+            },
+            {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- owns-state → [PTO-STATE-ARCH-OWNER](#node:scope:root:PTO-STATE-ARCH-OWNER \"<root>/owner.asl#L2\") State Arch Owner\n- ← defined-in [PTO-STATE-ARCH-OWNER](#node:scope:root:PTO-STATE-ARCH-OWNER \"<root>/owner.asl#L2\") State Arch Owner\n- ← depends-on [PTO-ARCH-DEPENDENCY](#node:scope:root:PTO-ARCH-DEPENDENCY \"<root>/dependency.asl#L1\") arch ASL unit PTO-ARCH-DEPENDENCY"
             }
           ],
           "ndf": {
@@ -172,23 +177,57 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": ""
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": ""
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "arch",
+                "architecture",
+                "state"
+              ],
               "value": "arch"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "active"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "pto-spec"
+              ],
               "value": "pto-spec"
             }
           ],
@@ -310,6 +349,11 @@
             {
               "label": "scope",
               "value": "core"
+            },
+            {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- defined-in → [PTO-ARCH-OWNER](#node:scope:root:PTO-ARCH-OWNER \"<root>/owner.asl#L1\") arch ASL unit PTO-ARCH-OWNER\n- ← depends-on [PTO-STATE-ARCH-DEPENDENCY](#node:scope:root:PTO-STATE-ARCH-DEPENDENCY \"<root>/dependency.asl#L2\") State Arch Dependency\n- ← owns-state [PTO-ARCH-OWNER](#node:scope:root:PTO-ARCH-OWNER \"<root>/owner.asl#L1\") arch ASL unit PTO-ARCH-OWNER"
             }
           ],
           "ndf": {
@@ -327,23 +371,57 @@
           },
           "parameters": [
             {
+              "choices": [
+                "must",
+                "should",
+                "may",
+                "tbd"
+              ],
+              "editable": true,
               "name": "modality",
               "value": ""
             },
             {
+              "editable": true,
               "name": "refinement",
+              "suggestions": [
+                "L0",
+                "L1",
+                "L2",
+                "L3"
+              ],
               "value": ""
             },
             {
+              "editable": true,
               "name": "domain",
+              "suggestions": [
+                "arch",
+                "architecture",
+                "state"
+              ],
               "value": "state"
             },
             {
+              "choices": [
+                "draft",
+                "active",
+                "deprecated",
+                "superseded",
+                "retired",
+                "open",
+                "resolved"
+              ],
+              "editable": true,
               "name": "status",
               "value": "active"
             },
             {
+              "editable": true,
               "name": "owner",
+              "suggestions": [
+                "pto-spec"
+              ],
               "value": "pto-spec"
             }
           ],
@@ -458,6 +536,11 @@
             {
               "label": "surface",
               "value": "arch"
+            },
+            {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- depends-on → [PTO-ARCH-OWNER](#node:scope:root:PTO-ARCH-OWNER \"<root>/owner.asl#L1\") arch ASL unit PTO-ARCH-OWNER\n- owns-state → [PTO-STATE-ARCH-DEPENDENCY](#node:scope:root:PTO-STATE-ARCH-DEPENDENCY \"<root>/dependency.asl#L2\") State Arch Dependency\n- ← defined-in [PTO-STATE-ARCH-DEPENDENCY](#node:scope:root:PTO-STATE-ARCH-DEPENDENCY \"<root>/dependency.asl#L2\") State Arch Dependency"
             },
             {
               "label": "Document",
@@ -602,6 +685,11 @@
             {
               "label": "scope",
               "value": "core"
+            },
+            {
+              "label": "Trace",
+              "markdown": true,
+              "value": "- defined-in → [PTO-ARCH-DEPENDENCY](#node:scope:root:PTO-ARCH-DEPENDENCY \"<root>/dependency.asl#L1\") arch ASL unit PTO-ARCH-DEPENDENCY\n- depends-on → [PTO-STATE-ARCH-OWNER](#node:scope:root:PTO-STATE-ARCH-OWNER \"<root>/owner.asl#L2\") State Arch Owner\n- ← owns-state [PTO-ARCH-DEPENDENCY](#node:scope:root:PTO-ARCH-DEPENDENCY \"<root>/dependency.asl#L1\") arch ASL unit PTO-ARCH-DEPENDENCY"
             },
             {
               "label": "Document",

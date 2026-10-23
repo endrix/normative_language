@@ -4,6 +4,7 @@ pub mod adapters;
 pub mod baseline;
 pub mod dependencies;
 pub mod diagram;
+pub mod diagram_links;
 pub mod diff;
 pub mod edit;
 pub mod export;
