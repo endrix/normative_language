@@ -246,6 +246,10 @@ pub fn diagram_document(
     workflow: Option<&str>,
     view: Option<&str>,
 ) -> Result<(GraphDocument, bool), CompilerError> {
+    // The project's files are matched against the file by absolute path; a
+    // relative one (`asl/x.asl`, run from the project root) would find none.
+    let absolute = std::path::absolute(file).unwrap_or_else(|_| file.to_path_buf());
+    let file = absolute.as_path();
     let root = ndf_compiler::project::find_project_root(file).ok_or_else(|| {
         CompilerError::Contract(format!(
             "{} is not inside an NDF project (no ndf.yaml in any parent directory)",

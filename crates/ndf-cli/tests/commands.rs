@@ -540,6 +540,21 @@ fn diagram_json_format_wraps_the_document_in_the_envelope() {
 }
 
 #[test]
+fn diagram_reads_a_file_named_relative_to_the_working_directory() {
+    let root = repository()
+        .join("tests/fixtures/cli-smoke/project")
+        .canonicalize()
+        .unwrap();
+    let (status, payload) = ndf(&root, &["diagram", "docs/smoke.md"]);
+    assert_envelope(status, &payload, "diagram");
+    assert_eq!(payload["data"]["graph"]["id"], "wf:DOC-CLI-SMOKE");
+    assert_eq!(
+        payload["data"]["graph"]["nodes"].as_array().unwrap().len(),
+        1
+    );
+}
+
+#[test]
 fn diagram_refuses_a_file_outside_every_project_with_exit_two() {
     let directory = tempfile::tempdir().unwrap();
     let file = directory.path().join("loose.md");
