@@ -920,13 +920,127 @@
   "hierarchy": {
     "children": [
       {
-        "children": [],
-        "nodeCount": 4,
-        "path": [
-          "DOC-FIXTURE-PIPELINE"
+        "children": [
+          {
+            "children": [
+              {
+                "badges": [
+                  {
+                    "text": "MUST",
+                    "tone": "info"
+                  },
+                  {
+                    "text": "L1",
+                    "tone": "neutral"
+                  }
+                ],
+                "children": [],
+                "detail": "Issue contract",
+                "family": "requirement",
+                "label": "PIPE-ISSUE-001",
+                "nodeId": "node:scope:root:PIPE-ISSUE-001",
+                "path": [
+                  "DOC-FIXTURE-PIPELINE",
+                  "PIPE-ISSUE-001"
+                ],
+                "role": "node",
+                "sourceUri": "file://<root>/docs/pipeline.md",
+                "workflowName": "PIPE-ISSUE-001"
+              },
+              {
+                "badges": [
+                  {
+                    "text": "MUST",
+                    "tone": "info"
+                  },
+                  {
+                    "text": "L2",
+                    "tone": "neutral"
+                  }
+                ],
+                "children": [],
+                "detail": "Issue mechanism",
+                "family": "requirement",
+                "label": "PIPE-ISSUE-010",
+                "nodeId": "node:scope:root:PIPE-ISSUE-010",
+                "path": [
+                  "DOC-FIXTURE-PIPELINE",
+                  "PIPE-ISSUE-010"
+                ],
+                "role": "node",
+                "sourceUri": "file://<root>/docs/pipeline.md",
+                "workflowName": "PIPE-ISSUE-010"
+              },
+              {
+                "badges": [
+                  {
+                    "text": "MUST",
+                    "tone": "info"
+                  },
+                  {
+                    "text": "L1",
+                    "tone": "neutral"
+                  }
+                ],
+                "children": [],
+                "detail": "PTO conformance",
+                "family": "requirement",
+                "label": "PIPE-PTO-001",
+                "nodeId": "node:scope:root:PIPE-PTO-001",
+                "path": [
+                  "DOC-FIXTURE-PIPELINE",
+                  "PIPE-PTO-001"
+                ],
+                "role": "node",
+                "sourceUri": "file://<root>/docs/pipeline.md",
+                "workflowName": "PIPE-PTO-001"
+              },
+              {
+                "badges": [
+                  {
+                    "text": "TBD",
+                    "tone": "warning"
+                  },
+                  {
+                    "text": "L1",
+                    "tone": "neutral"
+                  },
+                  {
+                    "text": "draft",
+                    "tone": "neutral"
+                  }
+                ],
+                "children": [],
+                "detail": "Prospective PTO extension",
+                "family": "requirement",
+                "label": "PIPE-PTO-EXT-001",
+                "nodeId": "node:scope:root:PIPE-PTO-EXT-001",
+                "path": [
+                  "DOC-FIXTURE-PIPELINE",
+                  "PIPE-PTO-EXT-001"
+                ],
+                "role": "node",
+                "sourceUri": "file://<root>/docs/pipeline.md",
+                "workflowName": "PIPE-PTO-EXT-001"
+              }
+            ],
+            "detail": "DOC-FIXTURE-PIPELINE",
+            "label": "Pipeline",
+            "nodeCount": 4,
+            "path": [
+              "DOC-FIXTURE-PIPELINE"
+            ],
+            "sourceUri": "file://<root>/docs/pipeline.md",
+            "workflowName": "DOC-FIXTURE-PIPELINE"
+          }
         ],
-        "sourceUri": "file://<root>/docs/pipeline.md",
-        "workflowName": "DOC-FIXTURE-PIPELINE"
+        "label": "docs",
+        "path": [
+          "dir:docs"
+        ],
+        "role": "group",
+        "sourceUri": "",
+        "workflowName": "docs"
       }
     ],
     "nodeCount": 1,

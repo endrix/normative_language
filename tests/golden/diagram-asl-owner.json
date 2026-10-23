@@ -732,7 +732,23 @@
   "hierarchy": {
     "children": [
       {
-        "children": [],
+        "children": [
+          {
+            "children": [],
+            "detail": "arch ASL unit PTO-ARCH-CYCLE-A",
+            "family": "source",
+            "label": "PTO-ARCH-CYCLE-A",
+            "nodeId": "node:scope:root:PTO-ARCH-CYCLE-A",
+            "path": [
+              "cycle-a",
+              "PTO-ARCH-CYCLE-A"
+            ],
+            "role": "node",
+            "sourceUri": "file://<root>/cycle-a.asl",
+            "workflowName": "PTO-ARCH-CYCLE-A"
+          }
+        ],
+        "detail": "cycle-a",
         "nodeCount": 1,
         "path": [
           "cycle-a"
@@ -741,7 +757,23 @@
         "workflowName": "cycle-a"
       },
       {
-        "children": [],
+        "children": [
+          {
+            "children": [],
+            "detail": "arch ASL unit PTO-ARCH-CYCLE-B",
+            "family": "source",
+            "label": "PTO-ARCH-CYCLE-B",
+            "nodeId": "node:scope:root:PTO-ARCH-CYCLE-B",
+            "path": [
+              "cycle-b",
+              "PTO-ARCH-CYCLE-B"
+            ],
+            "role": "node",
+            "sourceUri": "file://<root>/cycle-b.asl",
+            "workflowName": "PTO-ARCH-CYCLE-B"
+          }
+        ],
+        "detail": "cycle-b",
         "nodeCount": 1,
         "path": [
           "cycle-b"
@@ -750,7 +782,37 @@
         "workflowName": "cycle-b"
       },
       {
-        "children": [],
+        "children": [
+          {
+            "children": [],
+            "detail": "arch ASL unit PTO-ARCH-DEPENDENCY",
+            "family": "source",
+            "label": "PTO-ARCH-DEPENDENCY",
+            "nodeId": "node:scope:root:PTO-ARCH-DEPENDENCY",
+            "path": [
+              "dependency",
+              "PTO-ARCH-DEPENDENCY"
+            ],
+            "role": "node",
+            "sourceUri": "file://<root>/dependency.asl",
+            "workflowName": "PTO-ARCH-DEPENDENCY"
+          },
+          {
+            "children": [],
+            "detail": "State Arch Dependency",
+            "family": "architecture",
+            "label": "PTO-STATE-ARCH-DEPENDENCY",
+            "nodeId": "node:scope:root:PTO-STATE-ARCH-DEPENDENCY",
+            "path": [
+              "dependency",
+              "PTO-STATE-ARCH-DEPENDENCY"
+            ],
+            "role": "node",
+            "sourceUri": "file://<root>/dependency.asl",
+            "workflowName": "PTO-STATE-ARCH-DEPENDENCY"
+          }
+        ],
+        "detail": "dependency",
         "nodeCount": 2,
         "path": [
           "dependency"
@@ -759,7 +821,37 @@
         "workflowName": "dependency"
       },
       {
-        "children": [],
+        "children": [
+          {
+            "children": [],
+            "detail": "arch ASL unit PTO-ARCH-OWNER",
+            "family": "source",
+            "label": "PTO-ARCH-OWNER",
+            "nodeId": "node:scope:root:PTO-ARCH-OWNER",
+            "path": [
+              "owner",
+              "PTO-ARCH-OWNER"
+            ],
+            "role": "node",
+            "sourceUri": "file://<root>/owner.asl",
+            "workflowName": "PTO-ARCH-OWNER"
+          },
+          {
+            "children": [],
+            "detail": "State Arch Owner",
+            "family": "architecture",
+            "label": "PTO-STATE-ARCH-OWNER",
+            "nodeId": "node:scope:root:PTO-STATE-ARCH-OWNER",
+            "path": [
+              "owner",
+              "PTO-STATE-ARCH-OWNER"
+            ],
+            "role": "node",
+            "sourceUri": "file://<root>/owner.asl",
+            "workflowName": "PTO-STATE-ARCH-OWNER"
+          }
+        ],
+        "detail": "owner",
         "nodeCount": 2,
         "path": [
           "owner"

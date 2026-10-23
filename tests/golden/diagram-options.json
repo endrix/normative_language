@@ -564,22 +564,211 @@
   "hierarchy": {
     "children": [
       {
-        "children": [],
-        "nodeCount": 5,
-        "path": [
-          "DOC-FORWARDING"
+        "children": [
+          {
+            "children": [
+              {
+                "badges": [
+                  {
+                    "text": "L0",
+                    "tone": "neutral"
+                  }
+                ],
+                "children": [],
+                "detail": "Forwarding intent",
+                "family": "architecture",
+                "label": "FWD-ADM-000",
+                "nodeId": "node:scope:root:FWD-ADM-000",
+                "path": [
+                  "DOC-FORWARDING",
+                  "FWD-ADM-000"
+                ],
+                "role": "node",
+                "sourceUri": "file://<root>/docs/forwarding.md",
+                "workflowName": "FWD-ADM-000"
+              },
+              {
+                "badges": [
+                  {
+                    "text": "MUST",
+                    "tone": "info"
+                  },
+                  {
+                    "text": "L1",
+                    "tone": "neutral"
+                  }
+                ],
+                "children": [],
+                "detail": "Frame admission",
+                "family": "requirement",
+                "label": "FWD-ADM-001",
+                "nodeId": "node:scope:root:FWD-ADM-001",
+                "path": [
+                  "DOC-FORWARDING",
+                  "FWD-ADM-001"
+                ],
+                "role": "node",
+                "sourceUri": "file://<root>/docs/forwarding.md",
+                "workflowName": "FWD-ADM-001"
+              },
+              {
+                "badges": [
+                  {
+                    "text": "SHOULD",
+                    "tone": "neutral"
+                  },
+                  {
+                    "text": "L1",
+                    "tone": "neutral"
+                  },
+                  {
+                    "text": "draft",
+                    "tone": "neutral"
+                  }
+                ],
+                "children": [],
+                "detail": "Admission under pressure",
+                "family": "requirement",
+                "label": "FWD-ADM-002",
+                "nodeId": "node:scope:root:FWD-ADM-002",
+                "path": [
+                  "DOC-FORWARDING",
+                  "FWD-ADM-002"
+                ],
+                "role": "node",
+                "sourceUri": "file://<root>/docs/forwarding.md",
+                "workflowName": "FWD-ADM-002"
+              },
+              {
+                "badges": [
+                  {
+                    "text": "open",
+                    "tone": "warning"
+                  }
+                ],
+                "children": [],
+                "detail": "Which admission policy wins",
+                "family": "question",
+                "label": "Q-001",
+                "nodeId": "node:scope:root:Q-001",
+                "path": [
+                  "DOC-FORWARDING",
+                  "Q-001"
+                ],
+                "role": "node",
+                "sourceUri": "file://<root>/docs/forwarding.md",
+                "workflowName": "Q-001"
+              },
+              {
+                "badges": [
+                  {
+                    "text": "MUST",
+                    "tone": "info"
+                  },
+                  {
+                    "text": "L3",
+                    "tone": "neutral"
+                  }
+                ],
+                "children": [],
+                "detail": "Admission conformance",
+                "family": "verification",
+                "label": "VER-ADM-001",
+                "nodeId": "node:scope:root:VER-ADM-001",
+                "path": [
+                  "DOC-FORWARDING",
+                  "VER-ADM-001"
+                ],
+                "role": "node",
+                "sourceUri": "file://<root>/docs/forwarding.md",
+                "workflowName": "VER-ADM-001"
+              }
+            ],
+            "detail": "DOC-FORWARDING",
+            "label": "Forwarding",
+            "nodeCount": 5,
+            "path": [
+              "DOC-FORWARDING"
+            ],
+            "sourceUri": "file://<root>/docs/forwarding.md",
+            "workflowName": "DOC-FORWARDING"
+          },
+          {
+            "children": [
+              {
+                "badges": [
+                  {
+                    "text": "TBD",
+                    "tone": "warning"
+                  },
+                  {
+                    "text": "L2",
+                    "tone": "neutral"
+                  },
+                  {
+                    "text": "draft",
+                    "tone": "neutral"
+                  }
+                ],
+                "children": [],
+                "detail": "Admission buffer depth",
+                "family": "option",
+                "label": "PRM-BUF-001",
+                "nodeId": "node:scope:root:PRM-BUF-001",
+                "path": [
+                  "DOC-OPTIONS",
+                  "PRM-BUF-001"
+                ],
+                "role": "node",
+                "sourceUri": "file://<root>/docs/options.md",
+                "workflowName": "PRM-BUF-001"
+              },
+              {
+                "badges": [
+                  {
+                    "text": "TBD",
+                    "tone": "warning"
+                  },
+                  {
+                    "text": "L2",
+                    "tone": "neutral"
+                  },
+                  {
+                    "text": "draft",
+                    "tone": "neutral"
+                  }
+                ],
+                "children": [],
+                "detail": "Concurrent threads",
+                "family": "option",
+                "label": "PRM-THR-001",
+                "nodeId": "node:scope:root:PRM-THR-001",
+                "path": [
+                  "DOC-OPTIONS",
+                  "PRM-THR-001"
+                ],
+                "role": "node",
+                "sourceUri": "file://<root>/docs/options.md",
+                "workflowName": "PRM-THR-001"
+              }
+            ],
+            "detail": "DOC-OPTIONS",
+            "label": "Design options",
+            "nodeCount": 2,
+            "path": [
+              "DOC-OPTIONS"
+            ],
+            "sourceUri": "file://<root>/docs/options.md",
+            "workflowName": "DOC-OPTIONS"
+          }
         ],
-        "sourceUri": "file://<root>/docs/forwarding.md",
-        "workflowName": "DOC-FORWARDING"
-      },
-      {
-        "children": [],
-        "nodeCount": 2,
+        "label": "docs",
         "path": [
-          "DOC-OPTIONS"
+          "dir:docs"
         ],
-        "sourceUri": "file://<root>/docs/options.md",
-        "workflowName": "DOC-OPTIONS"
+        "role": "group",
+        "sourceUri": "",
+        "workflowName": "docs"
       }
     ],
     "nodeCount": 2,

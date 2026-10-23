@@ -798,10 +798,14 @@ fn diagram_draws_a_named_unit_and_its_trace_view() {
         .map(|scope| scope["label"].as_str().unwrap())
         .collect();
     assert_eq!(labels, ["L0", "L1"]);
-    // The outline rides on every unit.
+    // The outline rides on every unit: the documents under their folder.
     assert_eq!(document["hierarchy"]["workflowName"], "diagram");
+    assert_eq!(document["hierarchy"]["children"][0]["role"], "group");
     assert_eq!(
-        document["hierarchy"]["children"].as_array().unwrap().len(),
+        document["hierarchy"]["children"][0]["children"]
+            .as_array()
+            .unwrap()
+            .len(),
         2
     );
 

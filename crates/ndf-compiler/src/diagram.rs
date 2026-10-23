@@ -157,11 +157,59 @@ pub struct HierarchyEntry {
     pub workflow_name: String,
     #[serde(rename = "sourceUri")]
     pub source_uri: String,
-    #[serde(rename = "nodeCount")]
-    pub node_count: usize,
+    #[serde(rename = "nodeCount", skip_serializing_if = "Option::is_none")]
+    pub node_count: Option<usize>,
+    /// `group` for a folder or a layer (a heading, not a view), `node` for a
+    /// clause (found in its document's view); none for a document or project.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<&'static str>,
+    /// What the row says: a document's title, a clause's id.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// Said after the label: a document's id, a clause's title.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+    /// A clause's kind, which the panel colours as the diagram does.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub family: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub badges: Vec<Badge>,
+    /// A clause row's node, as `ndf diagram` names it in its document.
+    #[serde(rename = "nodeId", skip_serializing_if = "Option::is_none")]
+    pub node_id: Option<String>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub truncated: bool,
     pub children: Vec<HierarchyEntry>,
+}
+
+impl HierarchyEntry {
+    fn row(path: Vec<String>, workflow_name: String, source_uri: String) -> Self {
+        Self {
+            path,
+            workflow_name,
+            source_uri,
+            node_count: None,
+            role: None,
+            label: None,
+            detail: None,
+            family: None,
+            badges: Vec::new(),
+            node_id: None,
+            truncated: false,
+            children: Vec::new(),
+        }
+    }
+
+    /// A heading over other rows: transparent to paths, so its children's
+    /// paths are written as if it were not there.
+    fn group(path: Vec<String>, label: &str, children: Vec<HierarchyEntry>) -> Self {
+        Self {
+            role: Some("group"),
+            label: Some(label.to_owned()),
+            children,
+            ..Self::row(path, label.to_owned(), String::new())
+        }
+    }
 }
 
 /// How the clauses of a unit are grouped into containers.
@@ -394,6 +442,8 @@ struct Project<'a> {
     domains: Vec<String>,
     /// The values the project's clauses already use, offered as suggestions.
     used: UsedValues,
+    /// How the diagram groups clauses, which the outline follows.
+    group: GroupBy,
 }
 
 /// The values a project's clauses already give the free-text fields.
@@ -464,6 +514,7 @@ impl<'a> Project<'a> {
             files: FileIndex::new(&root),
             domains: request.manifest.domains.clone(),
             used,
+            group: request.group,
             root,
             id: request.manifest.project.as_str(),
             graph,
@@ -1310,30 +1361,191 @@ impl<'a> Project<'a> {
         }
     }
 
-    /// The project outline: the project at the root, one child per document
-    /// in path order, each named by its document id.
+    /// The project outline, for the diagram's outline panel: the project at
+    /// the root; its documents by folder (the specification's chapters), each
+    /// by its title, its clauses beneath it grouped as the diagram groups them;
+    /// then the documents of its locked dependencies. Folders and layers are
+    /// `group` rows, clauses `node` rows the panel finds in their document's
+    /// view. Past `OUTLINE_BUDGET` rows a document's clauses are left out
+    /// (it is marked truncated), never a document.
     fn outline(&self) -> HierarchyEntry {
-        let children = self
-            .documents
-            .iter()
-            .take(OUTLINE_BUDGET)
-            .map(|document| HierarchyEntry {
-                path: vec![document.id.clone()],
-                workflow_name: document.id.clone(),
-                source_uri: file_uri(&self.absolute(&document.path)),
-                node_count: document.clause_count,
-                truncated: false,
-                children: Vec::new(),
-            })
-            .collect();
+        let mut clauses_by_path: BTreeMap<&str, Vec<&Node>> = BTreeMap::new();
+        for node in &self.graph.nodes {
+            if node.kind != NodeKind::Document {
+                clauses_by_path
+                    .entry(node.source.path.as_str())
+                    .or_default()
+                    .push(node);
+            }
+        }
+        for clauses in clauses_by_path.values_mut() {
+            clauses.sort_by_key(|node| (node.source.line, node.source.column));
+        }
+        let dependency_documents: usize = self
+            .dependencies
+            .values()
+            .map(|dependency| dependency.documents.len())
+            .sum();
+        let mut budget =
+            OUTLINE_BUDGET.saturating_sub(1 + self.documents.len() + dependency_documents);
+
+        let mut children: Vec<HierarchyEntry> = Vec::new();
+        for document in self.documents.iter().take(OUTLINE_BUDGET) {
+            let clauses = clauses_by_path
+                .get(document.path.as_str())
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            let entry = self.document_outline(document, clauses, &mut budget);
+            // Documents come in path order, so a folder's are together.
+            match document.path.rsplit_once('/') {
+                None => children.push(entry),
+                Some((folder, _)) => match children.last_mut() {
+                    Some(last)
+                        if last.role == Some("group") && last.label.as_deref() == Some(folder) =>
+                    {
+                        last.children.push(entry);
+                    }
+                    _ => children.push(HierarchyEntry::group(
+                        vec![format!("dir:{folder}")],
+                        folder,
+                        vec![entry],
+                    )),
+                },
+            }
+        }
+        if !self.dependencies.is_empty() {
+            let projects = self
+                .dependencies
+                .iter()
+                .map(|(project, dependency)| {
+                    let documents = dependency
+                        .documents
+                        .iter()
+                        .map(|document| HierarchyEntry {
+                            node_count: Some(document.clause_count),
+                            label: (!document.title.is_empty() && document.title != document.id)
+                                .then(|| document.title.clone()),
+                            detail: Some(document.id.clone()),
+                            ..HierarchyEntry::row(
+                                vec![document.id.clone()],
+                                document.id.clone(),
+                                file_uri(&absolute_in(dependency.root, &document.path)),
+                            )
+                        })
+                        .collect();
+                    HierarchyEntry::group(vec![format!("dep:{project}")], project, documents)
+                })
+                .collect();
+            children.push(HierarchyEntry::group(
+                vec!["deps".to_owned()],
+                "Dependencies",
+                projects,
+            ));
+        }
         HierarchyEntry {
-            path: Vec::new(),
-            workflow_name: self.id.to_owned(),
-            source_uri: file_uri(&self.absolute(MANIFEST_FILE)),
-            node_count: self.documents.len(),
+            node_count: Some(self.documents.len()),
             truncated: self.documents.len() > OUTLINE_BUDGET,
             children,
+            ..HierarchyEntry::row(
+                Vec::new(),
+                self.id.to_owned(),
+                file_uri(&self.absolute(MANIFEST_FILE)),
+            )
         }
+    }
+
+    /// A document's outline row, its clauses beneath it while the budget
+    /// lasts, grouped by refinement layer or domain as the diagram is.
+    fn document_outline(
+        &self,
+        document: &DocumentInfo<'_>,
+        clauses: &[&Node],
+        budget: &mut usize,
+    ) -> HierarchyEntry {
+        let source_uri = file_uri(&self.absolute(&document.path));
+        let mut entry = HierarchyEntry {
+            node_count: Some(document.clause_count),
+            label: (!document.title.is_empty() && document.title != document.id)
+                .then(|| document.title.clone()),
+            detail: Some(document.id.clone()),
+            ..HierarchyEntry::row(
+                vec![document.id.clone()],
+                document.id.clone(),
+                source_uri.clone(),
+            )
+        };
+        let key = |clause: &Node| -> Option<String> {
+            match self.group {
+                GroupBy::None => None,
+                GroupBy::Refinement => Some(
+                    clause
+                        .refinement
+                        .clone()
+                        .unwrap_or_else(|| "unlayered".to_owned()),
+                ),
+                GroupBy::Domain => Some(
+                    clause
+                        .domain
+                        .clone()
+                        .unwrap_or_else(|| "no domain".to_owned()),
+                ),
+            }
+        };
+        let mut groups: BTreeMap<String, Vec<&Node>> = BTreeMap::new();
+        if self.group != GroupBy::None {
+            for clause in clauses {
+                groups
+                    .entry(key(clause).unwrap_or_default())
+                    .or_default()
+                    .push(clause);
+            }
+        }
+        let rows = clauses.len() + groups.len();
+        if rows > *budget {
+            entry.truncated = !clauses.is_empty();
+            return entry;
+        }
+        *budget -= rows;
+        let clause_row = |clause: &Node| -> HierarchyEntry {
+            let local = clause.id.local_id().to_owned();
+            let mut marks = badges(clause);
+            if self.group == GroupBy::Refinement {
+                marks.retain(|badge| Some(&badge.text) != clause.refinement.as_ref());
+            }
+            HierarchyEntry {
+                role: Some("node"),
+                label: Some(local.clone()),
+                detail: Some(clause.title.clone()),
+                family: Some(kind_name(clause.kind)),
+                badges: marks,
+                node_id: Some(node_id(&clause.id, self.id)),
+                ..HierarchyEntry::row(
+                    vec![document.id.clone(), local.clone()],
+                    local,
+                    source_uri.clone(),
+                )
+            }
+        };
+        let prefix = if self.group == GroupBy::Domain {
+            "domain"
+        } else {
+            "layer"
+        };
+        entry.children = if self.group == GroupBy::None {
+            clauses.iter().map(|clause| clause_row(clause)).collect()
+        } else {
+            groups
+                .into_iter()
+                .map(|(key, members)| {
+                    HierarchyEntry::group(
+                        vec![document.id.clone(), format!("{prefix}:{key}")],
+                        &key,
+                        members.into_iter().map(clause_row).collect(),
+                    )
+                })
+                .collect()
+        };
+        entry
     }
 
     fn absolute(&self, relative: &str) -> String {

@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ndf_compiler::diagram::{
-    DiagramRequest, GraphDocument, GroupBy, VIEWS, build_diagram, document_relative_path,
-    export_payload, failure_document, file_uri,
+    DiagramRequest, GraphDocument, GroupBy, ROOT_SCOPE, VIEWS, build_diagram,
+    document_relative_path, export_payload, failure_document, file_uri,
 };
 use ndf_compiler::project::{find_project_root, load_project};
 use serde_json::Value;
@@ -529,9 +529,14 @@ fn every_document_carries_the_project_outline() {
             outline.source_uri,
             file_uri(&root.join("ndf.yaml").to_string_lossy())
         );
-        assert_eq!(outline.node_count, 2);
+        assert_eq!(outline.node_count, Some(2));
         assert!(!outline.truncated);
-        let children: Vec<(Vec<String>, String, usize)> = outline
+        // The documents' folder, a heading transparent to paths.
+        assert_eq!(outline.children.len(), 1);
+        let folder = &outline.children[0];
+        assert_eq!(folder.role, Some("group"));
+        assert_eq!(folder.label.as_deref(), Some("docs"));
+        let documents: Vec<(Vec<String>, String, Option<usize>)> = folder
             .children
             .iter()
             .map(|child| {
@@ -543,22 +548,34 @@ fn every_document_carries_the_project_outline() {
             })
             .collect();
         assert_eq!(
-            children,
+            documents,
             [
                 (
                     vec!["DOC-FORWARDING".to_owned()],
                     "DOC-FORWARDING".to_owned(),
-                    5
+                    Some(5)
                 ),
-                (vec!["DOC-OPTIONS".to_owned()], "DOC-OPTIONS".to_owned(), 2)
+                (
+                    vec!["DOC-OPTIONS".to_owned()],
+                    "DOC-OPTIONS".to_owned(),
+                    Some(2)
+                )
             ]
         );
-        assert!(outline.children[1].source_uri.ends_with("/docs/options.md"));
+        assert!(folder.children[1].source_uri.ends_with("/docs/options.md"));
+        // Each document's clauses, in document order, as rows that name their node.
+        let options = &folder.children[1];
+        assert_eq!(options.children.len(), 2);
         assert!(
-            outline
+            options
                 .children
                 .iter()
-                .all(|child| child.children.is_empty())
+                .all(|clause| clause.role == Some("node")
+                    && clause.path.len() == 2
+                    && clause.path[0] == "DOC-OPTIONS"
+                    && clause.node_id.as_deref()
+                        == Some(format!("node:{}:{}", ROOT_SCOPE, clause.path[1]).as_str())
+                    && clause.children.is_empty())
         );
     }
     // Every unit lists the same views, on the root and on each clause.
