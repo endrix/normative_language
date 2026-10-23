@@ -555,6 +555,33 @@ fn diagram_reads_a_file_named_relative_to_the_working_directory() {
 }
 
 #[test]
+fn sidecar_refuses_to_edit_a_file_an_adapter_reads() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    let source = repository().join("tests/fixtures/pto-asl-project");
+    for name in ["ndf.yaml", "owner.asl", "dependency.asl"] {
+        fs::copy(source.join(name), root.join(name)).unwrap();
+    }
+    let file = root.join("owner.asl");
+    let original = fs::read_to_string(&file).unwrap();
+    let response = sidecar(
+        root,
+        serde_json::json!({
+            "file": file.to_str().unwrap(),
+            "op": "ndf.createNode",
+            "args": { "type": "requirement", "name": "New" }
+        }),
+    );
+    assert_eq!(response["status"], "error", "{response}");
+    assert_eq!(response["diagnostic"]["code"], "read_only", "{response}");
+    assert!(
+        response["message"].as_str().unwrap().contains("owner.asl"),
+        "{response}"
+    );
+    assert_eq!(fs::read_to_string(&file).unwrap(), original);
+}
+
+#[test]
 fn diagram_refuses_a_file_outside_every_project_with_exit_two() {
     let directory = tempfile::tempdir().unwrap();
     let file = directory.path().join("loose.md");

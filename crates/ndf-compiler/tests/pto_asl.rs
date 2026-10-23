@@ -3,7 +3,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ndf_compiler::adapters::parse_project;
-use ndf_compiler::adapters::pto_asl::{instruction_clause_id, parse_pto_asl, parse_pto_asl_text};
+use ndf_compiler::adapters::pto_asl::{
+    AslDeclaration, asl_declarations, display_title, implied_definitions, instruction_clause_id,
+    instruction_contract, parse_pto_asl, parse_pto_asl_text,
+};
 use ndf_compiler::manifest::ProjectManifest;
 use ndf_core::model::{Graph, LifecycleStatus, NodeKind};
 use serde_json::Value;
@@ -406,4 +409,145 @@ fn complete_pto_graph_uses_pto_diagnostics_for_cross_file_duplicates() {
         ),
     ]);
     assert_eq!(diagnostic_codes(&duplicate_state), ["NDF-ASL-008"]);
+}
+
+#[test]
+fn a_viewer_names_units_instructions_and_clauses_as_a_reader_does() {
+    let root = repository().join("tests/fixtures/pto-asl");
+    let project = ProjectManifest::for_test("pto-spec", &root, ["PTO"], ["tile"]);
+    let parsed = parse_pto_asl(&root.join("accept.asl"), &project).unwrap();
+    let title = |local: &str| {
+        let node = parsed
+            .nodes
+            .iter()
+            .find(|node| node.id.local_id() == local)
+            .unwrap();
+        display_title(node)
+    };
+    assert_eq!(title("PTO-TILE-TLOAD").as_deref(), Some("accept.asl"));
+    assert_eq!(title("PTO-INST-TILE-TLOAD").as_deref(), Some("TLOAD"));
+    // The first sentence, cut at a word past a heading's length.
+    assert_eq!(
+        title("PTO-TILE-CAPACITY").as_deref(),
+        Some("Tile capacity is defined per selected PE; see…")
+    );
+    assert_eq!(
+        title("PTO-TILE-CAPACITY-MECHANISM").as_deref(),
+        Some("The implementation tracks capacity in tile state")
+    );
+    // A state keeps the title the graph gives it.
+    assert_eq!(title("PTO-STATE-TILE-LOCAL"), None);
+
+    // A long first sentence is cut at a word; a line that only links is not
+    // the clause's words.
+    let text = "// NDF-BEGIN: PTO-LONG-001\n\
+        // ndf: kind=contract level=L1 layer=tile status=accepted\n\
+        // Issue: https://example.org/issues/1\n\
+        // Every valid finite floating or scale encoding with a finite-binary\n\
+        // decomposition MUST decompose without host arithmetic. More follows.\n\
+        // NDF-END: PTO-LONG-001\n\
+        // NDF-BEGIN: PTO-SHORT-001\n\
+        // ndf: kind=contract level=L1 layer=tile status=accepted\n\
+        // Reads [[PTO-STATE-TILE-LOCAL]] first. Then more.\n\
+        // NDF-END: PTO-SHORT-001\n";
+    let parsed = parse_pto_asl_text(text, &root.join("long.asl"), &project).unwrap();
+    assert_eq!(
+        display_title(&parsed.nodes[0]).as_deref(),
+        Some("Every valid finite floating or scale encoding with a…")
+    );
+    // Its mentions as plain identities.
+    assert_eq!(
+        display_title(&parsed.nodes[1]).as_deref(),
+        Some("Reads PTO-STATE-TILE-LOCAL first")
+    );
+    // The graph's own title is unchanged: release impact compares it.
+    assert_eq!(parsed.nodes[0].title, "Long 001");
+}
+
+#[test]
+fn an_instruction_contract_reads_as_markdown() {
+    let line = concat!(
+        "// PTO-INSTRUCTION: ",
+        r#"{"id":"PTO-SCALAR-X","surface":"scalar","mnemonic":"X","summary":"X loads a pair.","#,
+        r#""catalog_records":[{"asm":"x Dst, Src","encoding_kind":"HL48","length_bits":48,"#,
+        r#""encoding":[{"match":"0x6","mask":"0x7"}],"#,
+        r#""fields":[{"name":"Dst","pieces":[{"instruction_lsb":23,"width":5}]},"#,
+        r#"{"name":"Imm","pieces":[{"instruction_lsb":7,"width":1},{"instruction_lsb":40,"width":4}]}]}],"#,
+        r#""contract":{"canonical_assembly":["x Dst, Src"],"operands":[{"field":"Dst","role":"destination"}],"#,
+        r#""field_zero_meanings":{"Dst":"Encoded zero discards the result."},"#,
+        r#""legality":["Src must be aligned."],"exceptions":[],"#,
+        r#""field_contracts":{"Imm":{"ref":"PTO-FIELD-IMM"}}}}"#,
+    );
+    let contract = instruction_contract(line).unwrap();
+    assert_eq!(
+        contract,
+        "X loads a pair.\n\n\
+         **Assembly**\n\n- `x Dst, Src`\n\n\
+         **Operands**\n\n- `Dst`: destination. Encoded zero discards the result.\n\n\
+         **Encoding**\n\n\
+         - `x Dst, Src`: HL48, 48 bits, match `0x6` under mask `0x7`\n  - `Dst` [27:23]\n  - `Imm` [7] [43:40]\n\n\
+         **Legality**\n\n- Src must be aligned.\n\n\
+         **Field contracts**\n\n- `Imm`: [[PTO-FIELD-IMM]]"
+    );
+    assert_eq!(instruction_contract("// PTO-UNIT: {}"), None);
+}
+
+#[test]
+fn a_clause_written_in_a_unit_is_defined_in_it_wherever_the_header_is() {
+    let directory = tempfile::tempdir().unwrap();
+    let project = ProjectManifest::for_test("pto-spec", directory.path(), ["PTO"], ["tile"]);
+    let text = concat!(
+        "// NDF-BEGIN: PTO-EARLY-001\n",
+        "// ndf: kind=contract level=L1 layer=tile status=accepted\n",
+        "// The clause comes first.\n",
+        "// NDF-END: PTO-EARLY-001\n",
+        r#"// PTO-UNIT: {"id":"PTO-TILE-EARLY","surface":"tile","classification":["early"],"depends_on":[]}"#,
+        "\n",
+    );
+    let parsed = parse_pto_asl_text(text, &directory.path().join("early.asl"), &project).unwrap();
+    // The graph records no such edge ...
+    assert!(
+        !parsed
+            .edges
+            .iter()
+            .any(|edge| edge.edge_type == "defined-in")
+    );
+    // ... a reader sees one.
+    let graph = Graph {
+        nodes: parsed.nodes,
+        edges: parsed.edges,
+        diagnostics: parsed.diagnostics,
+    };
+    let implied: Vec<_> = implied_definitions(&graph)
+        .into_iter()
+        .map(|(clause, unit)| (clause.id.local_id(), unit.id.local_id()))
+        .collect();
+    assert_eq!(implied, [("PTO-EARLY-001", "PTO-TILE-EARLY")]);
+}
+
+#[test]
+fn an_asl_file_declares_what_starts_its_lines() {
+    let text = "pure func Add(a: integer) => integer\nbegin\n    let x = 1;\nend;\n\
+        readonly impdef func Hook()\ntype Mode of enumeration { A, B };\n\
+        var _State : bits(4);\n// func Commented()\n  func Indented()\nconstant LIMIT = 4;\n";
+    let declared: Vec<_> = asl_declarations(text)
+        .into_iter()
+        .map(
+            |AslDeclaration {
+                 keyword,
+                 name,
+                 line,
+             }| (keyword, name, line),
+        )
+        .collect();
+    assert_eq!(
+        declared,
+        [
+            ("func", "Add".to_owned(), 1),
+            ("func", "Hook".to_owned(), 5),
+            ("type", "Mode".to_owned(), 6),
+            ("var", "_State".to_owned(), 7),
+            ("constant", "LIMIT".to_owned(), 10),
+        ]
+    );
 }

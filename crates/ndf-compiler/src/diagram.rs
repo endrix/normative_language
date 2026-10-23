@@ -31,6 +31,9 @@ use serde::Serialize;
 use serde_json::{Map, Value, json};
 
 use crate::CompilerError;
+use crate::adapters::pto_asl::{
+    asl_declarations, display_title, implied_definitions, instruction_contract,
+};
 use crate::dependencies::DependencyGraph;
 use crate::diagram_links::{
     FileIndex, LinkTarget, has_file_extension, link_markdown, link_path, parse_file_ref,
@@ -434,6 +437,9 @@ struct Project<'a> {
     document_by_path: BTreeMap<String, usize>,
     dependencies: BTreeMap<&'a str, Dependency<'a>>,
     diagnostics_by_subject: BTreeMap<&'a NodeId, Vec<&'a Diagnostic>>,
+    /// The edges a reader sees that the graph leaves implicit (a clause
+    /// written in an ASL unit is defined in it); numbered after the graph's.
+    implied_edges: Vec<Edge>,
     /// Every edge touching a node, by either end.
     edges_by_end: BTreeMap<&'a NodeId, Vec<usize>>,
     /// The project's files, for the ones its clauses name.
@@ -476,6 +482,21 @@ impl<'a> Project<'a> {
             if edge.target != edge.source {
                 edges_by_end.entry(&edge.target).or_default().push(index);
             }
+        }
+        let mut implied_edges = Vec::new();
+        for (clause, unit) in implied_definitions(graph) {
+            let index = graph.edges.len() + implied_edges.len();
+            edges_by_end.entry(&clause.id).or_default().push(index);
+            edges_by_end.entry(&unit.id).or_default().push(index);
+            implied_edges.push(
+                Edge::new(
+                    clause.id.clone(),
+                    unit.id.clone(),
+                    "defined-in",
+                    Some(clause.source.clone()),
+                )
+                .expect("non-empty built-in edge type"),
+            );
         }
         let dependencies = request
             .dependencies
@@ -531,6 +552,7 @@ impl<'a> Project<'a> {
                     map
                 },
             ),
+            implied_edges,
             edges_by_end,
         })
     }
@@ -634,6 +656,19 @@ impl<'a> Project<'a> {
 
     // -- the document view ---------------------------------------------------
 
+    /// An edge by its number: the graph's, then the implied ones.
+    fn edge(&self, index: usize) -> &Edge {
+        self.graph
+            .edges
+            .get(index)
+            .unwrap_or_else(|| &self.implied_edges[index - self.graph.edges.len()])
+    }
+
+    /// The graph's edges, then the implied ones.
+    fn edges(&self) -> impl Iterator<Item = &Edge> {
+        self.graph.edges.iter().chain(&self.implied_edges)
+    }
+
     /// One document: its clauses, the typed edges between them, and every
     /// clause outside it that an edge reaches, drawn once as an external node.
     fn document_view(
@@ -649,9 +684,7 @@ impl<'a> Project<'a> {
             .collect();
         let clause_ids: BTreeSet<&NodeId> = clauses.iter().map(|node| &node.id).collect();
         let edges: Vec<&Edge> = self
-            .graph
-            .edges
-            .iter()
+            .edges()
             .filter(|edge| clause_ids.contains(&edge.source) || clause_ids.contains(&edge.target))
             .collect();
 
@@ -741,7 +774,7 @@ impl<'a> Project<'a> {
             ),
             Unit::Clause(node, _) => (
                 node.id.local_id().to_owned(),
-                node.title.clone(),
+                title_of(node),
                 self.absolute(&node.source.path),
                 vec![&node.id],
             ),
@@ -767,7 +800,7 @@ impl<'a> Project<'a> {
                 continue;
             };
             for &index in indices {
-                let edge = &self.graph.edges[index];
+                let edge = self.edge(index);
                 if edge.edge_type != edge_type {
                     continue;
                 }
@@ -826,7 +859,7 @@ impl<'a> Project<'a> {
         }
         let diagram_edges = edge_indices
             .iter()
-            .map(|&index| self.diagram_edge(&self.graph.edges[index], None))
+            .map(|&index| self.diagram_edge(self.edge(index), None))
             .collect();
 
         let label = view_label(edge_type);
@@ -867,7 +900,7 @@ impl<'a> Project<'a> {
         let mut aggregated: BTreeMap<(String, String, String), (usize, Option<Location>)> =
             BTreeMap::new();
         let mut foreign_projects: BTreeSet<&str> = BTreeSet::new();
-        for edge in &self.graph.edges {
+        for edge in self.edges() {
             let Target::Local {
                 document: from_document,
                 ..
@@ -1003,7 +1036,11 @@ impl<'a> Project<'a> {
             meta.insert("open".to_owned(), open);
         }
         // A clause the panel edits shows its fields there, not twice.
-        let editable = node.id.project_id() == self.id && !placement.external;
+        // Only Markdown clauses are edited in place; the others (an ASL
+        // unit's, an instruction's) belong to the file their adapter reads.
+        let editable = node.id.project_id() == self.id
+            && !placement.external
+            && node.source.path.ends_with(".md");
         let mut facts = self.clause_facts(node, !editable);
         if placement.external {
             meta.insert("external".to_owned(), Value::Bool(true));
@@ -1025,9 +1062,11 @@ impl<'a> Project<'a> {
                 where_facts.push(json!({ "label": "Project", "value": project }));
             }
             if let Value::Array(items) = &mut facts {
-                // The body stays last: it is the long one.
+                // The body (or contract) stays last: it is the long one.
                 let body = match items.last() {
-                    Some(last) if last["label"] == "Body" => items.pop(),
+                    Some(last) if last["label"] == "Body" || last["label"] == "Contract" => {
+                        items.pop()
+                    }
                     _ => None,
                 };
                 items.extend(where_facts);
@@ -1048,7 +1087,7 @@ impl<'a> Project<'a> {
         }
         DiagramNode {
             kind: kind_name(node.kind),
-            label: node.title.clone(),
+            label: title_of(node),
             footer: Some(node.id.local_id().to_owned()),
             scope,
             ports: pins(&id),
@@ -1515,7 +1554,7 @@ impl<'a> Project<'a> {
             HierarchyEntry {
                 role: Some("node"),
                 label: Some(local.clone()),
-                detail: Some(clause.title.clone()),
+                detail: Some(title_of(clause)),
                 family: Some(kind_name(clause.kind)),
                 badges: marks,
                 node_id: Some(node_id(&clause.id, self.id)),
@@ -1633,8 +1672,8 @@ impl<'a> Project<'a> {
     /// The file a clause stands for, when its title names one the project
     /// holds (a `source` clause's `` `path::Symbol` ``): `{ file, line }`.
     fn open_target(&self, node: &Node) -> Option<Value> {
-        let title = node.title.trim().trim_matches('`');
-        let reference = parse_file_ref(title)?;
+        let title = title_of(node);
+        let reference = parse_file_ref(title.trim().trim_matches('`'))?;
         let file = self.files.resolve(&self.base_dir(node), reference.path)?;
         let line = reference.line.or_else(|| {
             reference
@@ -1648,6 +1687,60 @@ impl<'a> Project<'a> {
         Some(open)
     }
 
+    /// The file a node was read from, absolute, and its text.
+    fn source_text(&self, node: &Node) -> Option<(PathBuf, String)> {
+        let root = self
+            .find_node(&node.id)
+            .map_or(self.root.as_path(), |(root, _)| root);
+        let file = PathBuf::from(absolute_in(root, &node.source.path));
+        let text = std::fs::read_to_string(&file).ok()?;
+        Some((file, text))
+    }
+
+    /// The contract an ASL instruction's metadata line states, as Markdown:
+    /// its text in the graph is empty, the contract being structured data.
+    fn contract(&self, node: &Node) -> Option<String> {
+        if node.attributes.get("pto_entity").map(String::as_str) != Some("instruction") {
+            return None;
+        }
+        let (_, text) = self.source_text(node)?;
+        let line = text
+            .lines()
+            .nth(node.source.line.checked_sub(1)? as usize)?;
+        instruction_contract(line)
+    }
+
+    /// What an ASL unit's file declares, each name a link to its line:
+    /// `Types`, `Functions`, then `Globals` (variables, constants, configs).
+    fn declaration_facts(&self, node: &Node) -> Vec<Value> {
+        if node.kind != NodeKind::Source || !node.source.path.ends_with(".asl") {
+            return Vec::new();
+        }
+        let Some((file, text)) = self.source_text(node) else {
+            return Vec::new();
+        };
+        let declarations = asl_declarations(&text);
+        let href = link_path(&file);
+        [
+            ("Types", &["type"][..]),
+            ("Functions", &["func"][..]),
+            ("Globals", &["var", "constant", "config"][..]),
+        ]
+        .into_iter()
+        .filter_map(|(label, keywords)| {
+            let links = declarations
+                .iter()
+                .filter(|declaration| keywords.contains(&declaration.keyword))
+                .map(|declaration| {
+                    format!("[`{}`]({href}#L{})", declaration.name, declaration.line)
+                })
+                .collect::<Vec<_>>();
+            (!links.is_empty())
+                .then(|| json!({ "label": label, "value": links.join(", "), "markdown": true }))
+        })
+        .collect()
+    }
+
     /// The clause's typed edges, each end a link: `refines → X Title` for its
     /// own, `← verifies Y Title` for the ones that point at it.
     fn trace_fact(&self, node: &Node) -> Option<Value> {
@@ -1659,7 +1752,7 @@ impl<'a> Project<'a> {
             .map(Vec::as_slice)
             .unwrap_or_default()
         {
-            let edge = &self.graph.edges[index];
+            let edge = self.edge(index);
             let (other, list) = if edge.source == node.id {
                 (&edge.target, &mut outgoing)
             } else {
@@ -1667,7 +1760,7 @@ impl<'a> Project<'a> {
             };
             let title = self
                 .find_node(other)
-                .map(|(_, other)| other.title.clone())
+                .map(|(_, other)| title_of(other))
                 .unwrap_or_default();
             let name = if other.project_id() == self.id {
                 other.local_id().to_owned()
@@ -1750,13 +1843,16 @@ impl<'a> Project<'a> {
                 .unwrap_or_default();
             facts.push(json!({
                 "label": "File",
-                "value": format!("[`{}`]({}{place})", node.title.trim().trim_matches('`'), link_path(Path::new(file))),
+                "value": format!("[`{}`]({}{place})", title_of(node).trim().trim_matches('`'), link_path(Path::new(file))),
                 "markdown": true
             }));
         }
+        facts.extend(self.declaration_facts(node));
         facts.extend(self.trace_fact(node));
         if !node.body.trim().is_empty() {
             facts.push(json!({ "label": "Body", "value": self.linked(node, &node.body), "markdown": true }));
+        } else if let Some(contract) = self.contract(node) {
+            facts.push(json!({ "label": "Contract", "value": self.linked(node, &contract), "markdown": true }));
         }
         Value::Array(facts)
     }
@@ -2118,6 +2214,13 @@ fn severity_name(severity: DiagnosticSeverity) -> &'static str {
 
 fn location_value(project_root: &Path, relative: &str, line: u32) -> Value {
     json!({ "file": absolute_in(project_root, relative), "line": line })
+}
+
+/// A node's title as the diagram shows it: the adapter's reader-facing name
+/// when it has one (an ASL unit's file, an instruction's mnemonic), else the
+/// title the graph records.
+fn title_of(node: &Node) -> String {
+    display_title(node).unwrap_or_else(|| node.title.clone())
 }
 
 fn absolute_in(project_root: &Path, relative: &str) -> String {

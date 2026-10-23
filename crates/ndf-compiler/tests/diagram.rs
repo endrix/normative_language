@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -794,6 +795,101 @@ fn a_unit_is_named_by_document_id_title_or_clause_id() {
         error.contains("no document or clause named NOPE"),
         "{error}"
     );
+}
+
+#[test]
+fn an_asl_unit_reads_as_its_file_its_instruction_and_contract_and_is_not_edited() {
+    let directory = tempdir().unwrap();
+    let root = directory.path().canonicalize().unwrap();
+    fs::copy(
+        repository().join("tests/fixtures/pto-asl-project/ndf.yaml"),
+        root.join("ndf.yaml"),
+    )
+    .unwrap();
+    fs::write(
+        root.join("X.LD.asl"),
+        concat!(
+            "// NDF-BEGIN: PTO-X-LD-001\n",
+            "// ndf: kind=contract level=L1 layer=architecture status=accepted\n",
+            "// X.LD MUST load one aligned word. It never writes back.\n",
+            "// NDF-END: PTO-X-LD-001\n",
+            r#"// PTO-INSTRUCTION: {"id":"PTO-SCALAR-X-LD","surface":"scalar","classification":["agu"],"depends_on":[],"mnemonic":"X.LD","summary":"X.LD loads a word.","catalog_records":[{"asm":"x.ld Dst","encoding_kind":"L32","length_bits":32,"fields":[{"name":"Dst","pieces":[{"instruction_lsb":7,"width":5}]}]}],"contract":{"legality":["The address is aligned."]}}"#,
+            "\n",
+            "pure func XLoadSize() => integer\nbegin\n    return 4;\nend;\n",
+        ),
+    )
+    .unwrap();
+    let loaded = load_project(&root).unwrap();
+    let document = build_diagram(&DiagramRequest {
+        project_root: &root,
+        manifest: &loaded.manifest,
+        graph: &loaded.graph,
+        dependencies: &loaded.dependencies,
+        file: &root.join("X.LD.asl"),
+        group: GroupBy::None,
+        workflow: None,
+        view: None,
+    })
+    .unwrap();
+    let node = |local: &str| {
+        document
+            .graph
+            .nodes
+            .iter()
+            .find(|node| node.id.ends_with(&format!(":{local}")))
+            .unwrap()
+    };
+    let fact = |local: &str, label: &str| {
+        node(local).meta["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|fact| fact["label"] == label)
+            .map(|fact| fact["value"].as_str().unwrap().to_owned())
+    };
+    // Named the way a reader looks for them.
+    assert_eq!(node("PTO-SCALAR-X-LD").label, "X.LD.asl");
+    assert_eq!(node("PTO-INST-SCALAR-X-LD").label, "X.LD");
+    assert_eq!(
+        node("PTO-X-LD-001").label,
+        "X.LD MUST load one aligned word"
+    );
+    // The unit stands for its file, and lists what it declares.
+    assert_eq!(
+        node("PTO-SCALAR-X-LD").meta["open"]["file"],
+        root.join("X.LD.asl").to_string_lossy().as_ref()
+    );
+    assert!(
+        fact("PTO-SCALAR-X-LD", "Functions")
+            .unwrap()
+            .contains("[`XLoadSize`](")
+    );
+    // The instruction's contract, from its metadata line.
+    let contract = fact("PTO-INST-SCALAR-X-LD", "Contract").unwrap();
+    assert!(contract.starts_with("X.LD loads a word."), "{contract}");
+    assert!(contract.contains("- `Dst` [11:7]"), "{contract}");
+    assert!(contract.contains("**Legality**"), "{contract}");
+    // The clause is drawn defined in the unit, though its header comes after.
+    let roles: BTreeSet<(String, &str)> = document
+        .graph
+        .edges
+        .iter()
+        .map(|edge| (edge.id.clone(), edge.meta["role"].as_str().unwrap()))
+        .collect();
+    assert!(roles.iter().any(|(id, role)| *role == "defined-in"
+        && id.contains("PTO-X-LD-001:out")
+        && id.contains("PTO-SCALAR-X-LD:in")));
+    assert!(
+        fact("PTO-X-LD-001", "Trace")
+            .unwrap()
+            .contains("defined-in → [PTO-SCALAR-X-LD]")
+    );
+    // An adapter's clauses are not edited in the diagram: their fields are
+    // facts, with no parameters to change.
+    for drawn in &document.graph.nodes {
+        assert!(drawn.meta.get("parameters").is_none(), "{}", drawn.id);
+    }
+    assert_eq!(fact("PTO-X-LD-001", "Status").as_deref(), Some("active"));
 }
 
 #[test]

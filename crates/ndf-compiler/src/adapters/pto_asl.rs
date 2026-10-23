@@ -4,7 +4,8 @@ use std::path::Path;
 
 use ndf_core::identity::NodeId;
 use ndf_core::model::{
-    Diagnostic, DiagnosticSeverity, Edge, LifecycleStatus, Node, NodeKind, ParseResult, SourceSpan,
+    Diagnostic, DiagnosticSeverity, Edge, Graph, LifecycleStatus, Node, NodeKind, ParseResult,
+    SourceSpan,
 };
 use serde_json::{Map, Value};
 
@@ -874,6 +875,101 @@ fn invalid_state_reference(
     )
 }
 
+// -- how a viewer shows what this adapter reads --------------------------
+//
+// The graph keeps the titles and bodies the adapter has always given (a
+// release's impact compares them), so these say how a diagram presents the
+// same nodes: by the names a reader uses, with the contract an instruction's
+// metadata states.
+
+/// What a viewer calls a node this adapter made, when its title only spells
+/// out its identity: a unit by its file, an instruction by its mnemonic, a
+/// clause written in a unit by its first sentence.
+pub fn display_title(node: &Node) -> Option<String> {
+    match node.attributes.get("pto_entity").map(String::as_str) {
+        Some("unit") => Some(node.source.path.clone()),
+        Some("instruction") => node.attributes.get("mnemonic").cloned(),
+        _ if node.attributes.contains_key("pto_kind") => sentence_title(&node.body),
+        _ => None,
+    }
+}
+
+/// The contract an instruction's `PTO-INSTRUCTION` line states, as Markdown.
+pub fn instruction_contract(line: &str) -> Option<String> {
+    let json = line.trim_start().strip_prefix(INSTRUCTION_PREFIX)?;
+    let Ok(Value::Object(metadata)) = serde_json::from_str(json) else {
+        return None;
+    };
+    let body = contract_markdown(&metadata);
+    (!body.is_empty()).then_some(body)
+}
+
+/// The edges a reader sees that the graph leaves implicit: a clause written in
+/// a unit's file is defined in that unit (wherever the unit's header is). As
+/// (clause, unit) pairs, for the clauses with no `defined-in` edge of their own.
+pub fn implied_definitions(graph: &Graph) -> Vec<(&Node, &Node)> {
+    let units: BTreeMap<&str, &Node> = graph
+        .nodes
+        .iter()
+        .filter(|node| node.attributes.get("pto_entity").map(String::as_str) == Some("unit"))
+        .map(|node| (node.source.path.as_str(), node))
+        .collect();
+    if units.is_empty() {
+        return Vec::new();
+    }
+    let defined: BTreeSet<&NodeId> = graph
+        .edges
+        .iter()
+        .filter(|edge| edge.edge_type == "defined-in")
+        .map(|edge| &edge.source)
+        .collect();
+    graph
+        .nodes
+        .iter()
+        .filter(|node| node.attributes.contains_key("pto_kind") && !defined.contains(&node.id))
+        .filter_map(|node| Some((node, *units.get(node.source.path.as_str())?)))
+        .collect()
+}
+
+/// A top-level declaration of an ASL file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AslDeclaration {
+    /// `func`, `type`, `var`, `constant` or `config`.
+    pub keyword: &'static str,
+    pub name: String,
+    /// 1-based.
+    pub line: u32,
+}
+
+/// The declarations an ASL file makes at its top level, in file order: the
+/// ones written from the first column, after their `pure`, `readonly`,
+/// `impure`, `noreturn` or `impdef` qualifiers.
+pub fn asl_declarations(text: &str) -> Vec<AslDeclaration> {
+    const KEYWORDS: &[&str] = &["func", "type", "var", "constant", "config"];
+    const QUALIFIERS: &[&str] = &["pure", "readonly", "impure", "noreturn", "impdef"];
+    text.lines()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            let mut words = line.split_whitespace();
+            if line.starts_with(char::is_whitespace) {
+                return None;
+            }
+            let keyword = words.find(|word| !QUALIFIERS.contains(word))?;
+            let keyword = KEYWORDS.iter().find(|candidate| **candidate == keyword)?;
+            let rest = words.next()?;
+            let name = rest
+                .split(|character: char| !(character.is_ascii_alphanumeric() || character == '_'))
+                .next()
+                .filter(|name| !name.is_empty())?;
+            Some(AslDeclaration {
+                keyword,
+                name: name.to_owned(),
+                line: (index + 1) as u32,
+            })
+        })
+        .collect()
+}
+
 fn declared_variables(text: &str) -> BTreeSet<String> {
     text.lines()
         .filter_map(|line| {
@@ -980,6 +1076,180 @@ fn instruction_attributes(
             facets.into_iter().collect::<Vec<_>>().join(","),
         ),
     ])
+}
+
+/// The instruction's contract as Markdown, the way a reader looks it up: what
+/// it does, how it is written, its operands, how it is encoded, then what it
+/// requires, raises and changes.
+fn contract_markdown(metadata: &Map<String, Value>) -> String {
+    let contract = metadata.get("contract").and_then(Value::as_object);
+    let contract_field = |name: &str| contract.and_then(|contract| contract.get(name));
+    let mut sections = Vec::new();
+    if let Some(summary) = metadata
+        .get("summary")
+        .and_then(Value::as_str)
+        .filter(|summary| !summary.trim().is_empty())
+    {
+        sections.push(summary.trim().to_owned());
+    }
+    if let Some(alias) = metadata.get("alias_of").and_then(Value::as_str) {
+        sections.push(format!("Alias of `{alias}`."));
+    }
+    let assembly = contract_field("canonical_assembly")
+        .or_else(|| metadata.get("assembly"))
+        .map(strings)
+        .unwrap_or_default();
+    push_list(
+        &mut sections,
+        "Assembly",
+        assembly.iter().map(|form| format!("`{form}`")),
+    );
+
+    let zero_meanings = contract_field("field_zero_meanings").and_then(Value::as_object);
+    let operands = contract_field("operands")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    push_list(
+        &mut sections,
+        "Operands",
+        operands.iter().filter_map(|operand| {
+            let field = operand.get("field").and_then(Value::as_str)?;
+            let mut item = format!("`{field}`");
+            if let Some(role) = operand.get("role").and_then(Value::as_str) {
+                item.push_str(&format!(": {role}"));
+            }
+            if let Some(zero) = zero_meanings
+                .and_then(|meanings| meanings.get(field))
+                .and_then(Value::as_str)
+            {
+                item.push_str(&format!(". {zero}"));
+            }
+            Some(item)
+        }),
+    );
+
+    let records = metadata
+        .get("catalog_records")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    push_list(
+        &mut sections,
+        "Encoding",
+        records.iter().filter_map(encoding_item),
+    );
+    for (heading, name) in [
+        ("Defaults", "defaults"),
+        ("Legality", "legality"),
+        ("Exceptions", "exceptions"),
+        ("Memory effects", "memory_effects"),
+        ("Ordering", "ordering"),
+        ("State effects", "state_effects"),
+    ] {
+        push_list(
+            &mut sections,
+            heading,
+            contract_field(name).map(strings).unwrap_or_default(),
+        );
+    }
+    push_list(
+        &mut sections,
+        "Field contracts",
+        contract_field("field_contracts")
+            .and_then(Value::as_object)
+            .into_iter()
+            .flatten()
+            .filter_map(|(field, value)| {
+                let reference = value.get("ref").and_then(Value::as_str)?;
+                Some(format!("`{field}`: [[{reference}]]"))
+            }),
+    );
+    sections.join("\n\n")
+}
+
+/// One encoded form: its assembly, kind and length, the fixed bits, then each
+/// field's bit range (`[27:23]`, the pieces of a split field in order).
+fn encoding_item(record: &Value) -> Option<String> {
+    let mut head = Vec::new();
+    if let Some(kind) = record.get("encoding_kind").and_then(Value::as_str) {
+        head.push(kind.to_owned());
+    }
+    if let Some(bits) = record.get("length_bits").and_then(Value::as_u64) {
+        head.push(format!("{bits} bits"));
+    }
+    for encoding in record
+        .get("encoding")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        if let (Some(fixed), Some(mask)) = (
+            encoding.get("match").and_then(Value::as_str),
+            encoding.get("mask").and_then(Value::as_str),
+        ) {
+            head.push(format!("match `{fixed}` under mask `{mask}`"));
+        }
+    }
+    let mut item = match record.get("asm").and_then(Value::as_str) {
+        Some(form) if head.is_empty() => format!("`{form}`"),
+        Some(form) => format!("`{form}`: {}", head.join(", ")),
+        None if head.is_empty() => return None,
+        None => head.join(", "),
+    };
+    for field in record
+        .get("fields")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let Some(name) = field.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        let ranges = field
+            .get("pieces")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|piece| {
+                let low = piece.get("instruction_lsb")?.as_u64()?;
+                let width = piece.get("width")?.as_u64()?.max(1);
+                let high = low + width - 1;
+                Some(if high == low {
+                    format!("[{low}]")
+                } else {
+                    format!("[{high}:{low}]")
+                })
+            })
+            .collect::<Vec<_>>();
+        item.push_str(&format!("\n  - `{name}` {}", ranges.join(" ")));
+    }
+    Some(item)
+}
+
+fn strings(value: &Value) -> Vec<String> {
+    match value {
+        Value::String(text) if !text.trim().is_empty() => vec![text.trim().to_owned()],
+        Value::Array(items) => items
+            .iter()
+            .filter_map(Value::as_str)
+            .map(str::trim)
+            .filter(|item| !item.is_empty())
+            .map(str::to_owned)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// A bold heading over a bulleted list, unless the list is empty.
+fn push_list(sections: &mut Vec<String>, heading: &str, items: impl IntoIterator<Item = String>) {
+    let items = items
+        .into_iter()
+        .map(|item| format!("- {item}"))
+        .collect::<Vec<_>>();
+    if !items.is_empty() {
+        sections.push(format!("**{heading}**\n\n{}", items.join("\n")));
+    }
 }
 
 fn joined_or_unspecified(values: BTreeSet<String>) -> String {
@@ -1230,6 +1500,54 @@ fn slug(value: &str) -> String {
         }
     }
     output.trim_end_matches('-').to_owned()
+}
+
+/// A clause's title from its text: the first sentence, its `[[...]]` mentions
+/// as plain identities, cut at a word near the length of a heading. Lines that
+/// only point elsewhere (`Issue: https://...`) are not the clause's words.
+fn sentence_title(body: &str) -> Option<String> {
+    const MAX_CHARS: usize = 64;
+    let text = body
+        .lines()
+        .map(str::trim)
+        .filter(|line| {
+            !line.split_once(": ").is_some_and(|(label, rest)| {
+                !label.contains(' ') && rest.trim().contains("://") && !rest.trim().contains(' ')
+            })
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+        .replace("[[", "")
+        .replace("]]", "");
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let sentence = text
+        .match_indices(". ")
+        .find(|(index, _)| {
+            text[index + 2..]
+                .chars()
+                .next()
+                .is_some_and(|next| next.is_uppercase())
+        })
+        .map(|(index, _)| &text[..index])
+        .unwrap_or_else(|| text.trim_end_matches('.'));
+    if sentence.is_empty() {
+        return None;
+    }
+    if sentence.chars().count() <= MAX_CHARS {
+        return Some(sentence.to_owned());
+    }
+    let mut title = String::new();
+    for word in sentence.split(' ') {
+        if !title.is_empty() && title.chars().count() + 1 + word.chars().count() > MAX_CHARS - 1 {
+            break;
+        }
+        if !title.is_empty() {
+            title.push(' ');
+        }
+        title.push_str(word);
+    }
+    let title = title.trim_end_matches([',', ';', ':']);
+    Some(format!("{title}…"))
 }
 
 fn clause_title(value: &str) -> String {

@@ -18,8 +18,9 @@
 //! `args.expectedRevision` is refused when the file's revision differs
 //! (`concurrent_source_modification`). Every result is re-parsed before it is
 //! written and refused when it parses worse than the original
-//! (`invalid_result`), the file untouched. Every other op is refused with
-//! `unsupported_op`.
+//! (`invalid_result`), the file untouched. A mutation of a file that is not
+//! a Markdown document (an adapter's, such as an `.asl` unit) is refused with
+//! `read_only`. Every other op is refused with `unsupported_op`.
 
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
@@ -330,6 +331,21 @@ fn list(op: &str, project: &LoadedProject, relative: &str, file: &str) -> Value 
 /// One mutation of the document at `file`: computed on its text, verified,
 /// then written. The ok payload says what changed.
 fn mutate(file: &Path, op: &str, args: &Map<String, Value>) -> Result<Value, EditError> {
+    // An adapter's file (an `.asl` unit) is drawn, not written: its clauses
+    // live in that file's own syntax, which only its editor changes.
+    if file.extension().and_then(|extension| extension.to_str()) != Some("md") {
+        return Err(EditError {
+            code: "read_only",
+            message: format!(
+                "{} is read-only in the diagram: ndf edits Markdown documents only; change this file in its editor",
+                file.file_name().map_or_else(
+                    || file.display().to_string(),
+                    |name| name.to_string_lossy().into_owned()
+                )
+            ),
+            details: json!({ "file": file.display().to_string() }),
+        });
+    }
     with_project(file, |project, relative| {
         let before = std::fs::read_to_string(file).map_err(|error| EditError {
             code: "op_failed",
