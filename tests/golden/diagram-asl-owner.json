@@ -62,6 +62,7 @@
     "meta": {
       "file": "<root>/owner.asl",
       "project": "pto-spec",
+      "readOnly": true,
       "title": "owner",
       "views": [
         {

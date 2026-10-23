@@ -49,6 +49,7 @@
       ],
       "file": "<root>/ndf.yaml",
       "project": "diagram",
+      "readOnly": true,
       "title": "diagram",
       "views": [
         {

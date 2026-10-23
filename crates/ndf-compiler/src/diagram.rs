@@ -1372,6 +1372,12 @@ impl<'a> Project<'a> {
         meta.insert("file".to_owned(), Value::String(file.to_owned()));
         meta.insert("project".to_owned(), Value::String(self.id.to_owned()));
         meta.insert("views".to_owned(), views_meta());
+        // A view not drawn from a Markdown document (the project overview, an
+        // ASL unit) is one ndf-sidecar cannot write to: the platform offers no
+        // palette and no editing items on it.
+        if !file.ends_with(".md") {
+            meta.insert("readOnly".to_owned(), Value::Bool(true));
+        }
         meta
     }
 

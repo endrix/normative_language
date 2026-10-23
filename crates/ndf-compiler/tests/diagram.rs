@@ -612,6 +612,11 @@ fn the_project_overview_draws_one_node_per_document_and_adds_up_the_edges() {
 
     assert_eq!(overview.graph.id, "wf:diagram");
     assert_eq!(overview.graph.meta["workflow"], "diagram");
+    // Nothing in the overview can be written: the platform offers no palette.
+    // A Markdown document's own view can.
+    assert_eq!(overview.graph.meta["readOnly"], true);
+    let document = unit_document("docs/options.md", None, None).unwrap();
+    assert!(document.graph.meta.get("readOnly").is_none());
     let documents: Vec<(&str, &str, Option<&str>)> = overview
         .graph
         .nodes
@@ -884,8 +889,9 @@ fn an_asl_unit_reads_as_its_file_its_instruction_and_contract_and_is_not_edited(
             .unwrap()
             .contains("defined-in → [PTO-SCALAR-X-LD]")
     );
-    // An adapter's clauses are not edited in the diagram: their fields are
-    // facts, with no parameters to change.
+    // An adapter's clauses are not edited in the diagram: the view is
+    // read-only, and their fields are facts, with no parameters to change.
+    assert_eq!(document.graph.meta["readOnly"], true);
     for drawn in &document.graph.nodes {
         assert!(drawn.meta.get("parameters").is_none(), "{}", drawn.id);
     }
