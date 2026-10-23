@@ -129,26 +129,6 @@
               "value": "option"
             },
             {
-              "label": "Modality",
-              "value": "tbd"
-            },
-            {
-              "label": "Refinement",
-              "value": "L2"
-            },
-            {
-              "label": "Domain",
-              "value": "forwarding"
-            },
-            {
-              "label": "Status",
-              "value": "draft"
-            },
-            {
-              "label": "Owner",
-              "value": "forwarding"
-            },
-            {
               "label": "Trace",
               "markdown": true,
               "value": "- couples-with → [PRM-THR-001](#node:scope:root:PRM-THR-001 \"<root>/docs/options.md#L16\") Concurrent threads\n- ← depends-on [FWD-ADM-001](#node:scope:root:FWD-ADM-001 \"<root>/docs/forwarding.md#L16\") Frame admission"
@@ -321,26 +301,6 @@
             {
               "label": "Kind",
               "value": "option"
-            },
-            {
-              "label": "Modality",
-              "value": "tbd"
-            },
-            {
-              "label": "Refinement",
-              "value": "L2"
-            },
-            {
-              "label": "Domain",
-              "value": "forwarding"
-            },
-            {
-              "label": "Status",
-              "value": "draft"
-            },
-            {
-              "label": "Owner",
-              "value": "forwarding"
             },
             {
               "label": "Trace",

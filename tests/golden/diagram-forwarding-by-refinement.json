@@ -183,22 +183,6 @@
               "value": "architecture"
             },
             {
-              "label": "Refinement",
-              "value": "L0"
-            },
-            {
-              "label": "Domain",
-              "value": "forwarding"
-            },
-            {
-              "label": "Status",
-              "value": "active"
-            },
-            {
-              "label": "Owner",
-              "value": "forwarding"
-            },
-            {
               "label": "Trace",
               "markdown": true,
               "value": "- ← refines [FWD-ADM-001](#node:scope:root:FWD-ADM-001 \"<root>/docs/forwarding.md#L16\") Frame admission"
@@ -366,26 +350,6 @@
             {
               "label": "Kind",
               "value": "requirement"
-            },
-            {
-              "label": "Modality",
-              "value": "must"
-            },
-            {
-              "label": "Refinement",
-              "value": "L1"
-            },
-            {
-              "label": "Domain",
-              "value": "forwarding"
-            },
-            {
-              "label": "Status",
-              "value": "active"
-            },
-            {
-              "label": "Owner",
-              "value": "forwarding"
             },
             {
               "label": "Trace",
@@ -570,26 +534,6 @@
               "value": "requirement"
             },
             {
-              "label": "Modality",
-              "value": "should"
-            },
-            {
-              "label": "Refinement",
-              "value": "L1"
-            },
-            {
-              "label": "Domain",
-              "value": "forwarding"
-            },
-            {
-              "label": "Status",
-              "value": "draft"
-            },
-            {
-              "label": "Owner",
-              "value": "forwarding"
-            },
-            {
               "label": "Trace",
               "markdown": true,
               "value": "- conflicts-with → [FWD-ADM-001](#node:scope:root:FWD-ADM-001 \"<root>/docs/forwarding.md#L16\") Frame admission\n- depends-on → `MISSING-001`\n- ← blocks [Q-001](#node:scope:root:Q-001 \"<root>/docs/forwarding.md#L27\") Which admission policy wins"
@@ -747,18 +691,6 @@
             {
               "label": "Kind",
               "value": "question"
-            },
-            {
-              "label": "Domain",
-              "value": "forwarding"
-            },
-            {
-              "label": "Status",
-              "value": "open"
-            },
-            {
-              "label": "Owner",
-              "value": "forwarding"
             },
             {
               "label": "Trace",
@@ -927,26 +859,6 @@
             {
               "label": "Kind",
               "value": "verification"
-            },
-            {
-              "label": "Modality",
-              "value": "must"
-            },
-            {
-              "label": "Refinement",
-              "value": "L3"
-            },
-            {
-              "label": "Domain",
-              "value": "forwarding"
-            },
-            {
-              "label": "Status",
-              "value": "active"
-            },
-            {
-              "label": "Owner",
-              "value": "forwarding"
             },
             {
               "label": "Trace",

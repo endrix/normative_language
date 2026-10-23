@@ -156,26 +156,6 @@
               "value": "requirement"
             },
             {
-              "label": "Modality",
-              "value": "must"
-            },
-            {
-              "label": "Refinement",
-              "value": "L1"
-            },
-            {
-              "label": "Domain",
-              "value": "core"
-            },
-            {
-              "label": "Status",
-              "value": "active"
-            },
-            {
-              "label": "Owner",
-              "value": "core"
-            },
-            {
               "label": "Trace",
               "markdown": true,
               "value": "- ← refines [PIPE-ISSUE-010](#node:scope:root:PIPE-ISSUE-010 \"<root>/docs/pipeline.md#L19\") Issue mechanism"
@@ -344,26 +324,6 @@
             {
               "label": "Kind",
               "value": "requirement"
-            },
-            {
-              "label": "Modality",
-              "value": "must"
-            },
-            {
-              "label": "Refinement",
-              "value": "L2"
-            },
-            {
-              "label": "Domain",
-              "value": "core"
-            },
-            {
-              "label": "Status",
-              "value": "active"
-            },
-            {
-              "label": "Owner",
-              "value": "core"
             },
             {
               "label": "Trace",
@@ -542,26 +502,6 @@
             {
               "label": "Kind",
               "value": "requirement"
-            },
-            {
-              "label": "Modality",
-              "value": "must"
-            },
-            {
-              "label": "Refinement",
-              "value": "L1"
-            },
-            {
-              "label": "Domain",
-              "value": "core"
-            },
-            {
-              "label": "Status",
-              "value": "active"
-            },
-            {
-              "label": "Owner",
-              "value": "core"
             },
             {
               "label": "Trace",
@@ -749,26 +689,6 @@
             {
               "label": "Kind",
               "value": "requirement"
-            },
-            {
-              "label": "Modality",
-              "value": "tbd"
-            },
-            {
-              "label": "Refinement",
-              "value": "L1"
-            },
-            {
-              "label": "Domain",
-              "value": "core"
-            },
-            {
-              "label": "Status",
-              "value": "draft"
-            },
-            {
-              "label": "Owner",
-              "value": "core"
             },
             {
               "label": "expected",

@@ -134,18 +134,6 @@
               "value": "source"
             },
             {
-              "label": "Domain",
-              "value": "arch"
-            },
-            {
-              "label": "Status",
-              "value": "active"
-            },
-            {
-              "label": "Owner",
-              "value": "pto-spec"
-            },
-            {
               "label": "classification",
               "value": "test"
             },
@@ -321,18 +309,6 @@
             {
               "label": "Kind",
               "value": "architecture"
-            },
-            {
-              "label": "Domain",
-              "value": "state"
-            },
-            {
-              "label": "Status",
-              "value": "active"
-            },
-            {
-              "label": "Owner",
-              "value": "pto-spec"
             },
             {
               "label": "classification",

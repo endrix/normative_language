@@ -951,7 +951,9 @@ impl<'a> Project<'a> {
         if let Some(open) = self.open_target(node) {
             meta.insert("open".to_owned(), open);
         }
-        let mut facts = self.clause_facts(node);
+        // A clause the panel edits shows its fields there, not twice.
+        let editable = node.id.project_id() == self.id && !placement.external;
+        let mut facts = self.clause_facts(node, !editable);
         if placement.external {
             meta.insert("external".to_owned(), Value::Bool(true));
             meta.insert("referencedSource".to_owned(), location.clone());
@@ -983,7 +985,7 @@ impl<'a> Project<'a> {
         }
         meta.insert("facts".to_owned(), facts);
         meta.insert("views".to_owned(), views_meta());
-        if node.id.project_id() == self.id && !placement.external {
+        if editable {
             // The fields a panel edits in place (`updateNodeParameter`): the
             // canonical ones, each with its value or empty when unset.
             meta.insert("parameters".to_owned(), self.parameters(node));
@@ -1489,29 +1491,32 @@ impl<'a> Project<'a> {
     }
 
     /// The facts a property panel lists for a clause, in reading order: what
-    /// it is, its fields and attributes (a file one a link), the clauses it is
-    /// tied to, then its body with its mentions and files as links.
-    fn clause_facts(&self, node: &Node) -> Value {
+    /// it is, its fields (unless the panel edits them, `with_fields` false)
+    /// and attributes (a file one a link), the clauses it is tied to, then its
+    /// body with its mentions and files as links.
+    fn clause_facts(&self, node: &Node, with_fields: bool) -> Value {
         let mut facts = Vec::new();
         let mut push = |label: &str, value: &str| {
             facts.push(json!({ "label": label, "value": value }));
         };
         push("ID", &node.id.uri());
         push("Kind", &kind_name(node.kind));
-        if let Some(modality) = node.modality.as_ref().and_then(enum_name) {
-            push("Modality", &modality);
-        }
-        if let Some(refinement) = &node.refinement {
-            push("Refinement", refinement);
-        }
-        if let Some(domain) = &node.domain {
-            push("Domain", domain);
-        }
-        if let Some(status) = enum_name(&node.status) {
-            push("Status", &status);
-        }
-        if let Some(owner) = &node.owner {
-            push("Owner", owner);
+        if with_fields {
+            if let Some(modality) = node.modality.as_ref().and_then(enum_name) {
+                push("Modality", &modality);
+            }
+            if let Some(refinement) = &node.refinement {
+                push("Refinement", refinement);
+            }
+            if let Some(domain) = &node.domain {
+                push("Domain", domain);
+            }
+            if let Some(status) = enum_name(&node.status) {
+                push("Status", &status);
+            }
+            if let Some(owner) = &node.owner {
+                push("Owner", owner);
+            }
         }
         let base_dir = self.base_dir(node);
         for (key, value) in &node.attributes {
