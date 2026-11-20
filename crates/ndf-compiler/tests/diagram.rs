@@ -271,6 +271,14 @@ fn a_clause_of_another_document_is_an_external_node_of_its_own_kind() {
     assert_eq!(option.meta["definitionAnnotations"][0]["name"], "option");
     // Drawn so the edge has somewhere to go: the product draws it quieter.
     assert_eq!(option.meta["role"], "neighbour");
+    // A reference nothing resolves is a broken link, not a neighbour.
+    let missing = document
+        .graph
+        .nodes
+        .iter()
+        .find(|node| node.kind == "blackbox")
+        .expect("the dangling depends-on target is drawn");
+    assert!(missing.meta.get("role").is_none());
     let own = document
         .graph
         .nodes
@@ -360,7 +368,8 @@ fn a_model_link_that_only_implements_is_a_count_on_its_clauses() {
         badges("node:scope:root:SPEC-HALT-001"),
         ["MUST", "L1", "1 impl"]
     );
-    // MODEL-RESET is drawn, so it is an edge, not part of the count.
+    // MODEL-RESET is drawn, so it is an edge, not part of the count; MODEL-HALT
+    // says it implements the clause twice (two edges), and is one link.
     assert_eq!(
         badges("node:scope:root:SPEC-HALT-002"),
         ["MUST", "L2", "2 impl"]

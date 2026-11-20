@@ -843,8 +843,7 @@
           "ndf": {
             "id": "ndf://pto-spec/PTO-INST-TILE-PEXT",
             "project": "pto-spec"
-          },
-          "role": "neighbour"
+          }
         },
         "ports": [
           {
@@ -898,8 +897,7 @@
           "ndf": {
             "id": "ndf://pto-spec/PTO-INST-TILE-TLOAD",
             "project": "pto-spec"
-          },
-          "role": "neighbour"
+          }
         },
         "ports": [
           {

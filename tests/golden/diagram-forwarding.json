@@ -1005,8 +1005,7 @@
           "ndf": {
             "id": "ndf://diagram/MISSING-001",
             "project": "diagram"
-          },
-          "role": "neighbour"
+          }
         },
         "ports": [
           {

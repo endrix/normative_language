@@ -8,9 +8,9 @@ owner: spec
 # The model, and what each action implements
 
 ## `src/model.py::Model.halt` {#MODEL-HALT}
-<!-- ndf: kind=source status=active implements=SPEC-HALT-001,SPEC-HALT-002 -->
+<!-- ndf: kind=source status=active implements=SPEC-HALT-001,SPEC-HALT-002,SPEC-HALT-002 -->
 
-Both halt clauses.
+Both halt clauses; it names the second twice, which is still one link.
 
 ## `src/model.py::Model.stay` {#MODEL-STAY}
 <!-- ndf: kind=source status=active implements=SPEC-HALT-002 -->

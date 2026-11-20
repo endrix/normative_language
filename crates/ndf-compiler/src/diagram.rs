@@ -706,7 +706,9 @@ impl<'a> Project<'a> {
             .copied()
             .filter(|id| self.implements_only(id, &edges, &clause_ids))
             .collect();
-        let mut implementers: BTreeMap<&NodeId, Vec<&NodeId>> = BTreeMap::new();
+        // A set: a source file is one link however many of its lines say
+        // they implement the clause, each its own edge.
+        let mut implementers: BTreeMap<&NodeId, BTreeSet<&NodeId>> = BTreeMap::new();
         let edges: Vec<&Edge> = edges
             .into_iter()
             .filter(|edge| {
@@ -714,7 +716,7 @@ impl<'a> Project<'a> {
                     implementers
                         .entry(&edge.target)
                         .or_default()
-                        .push(&edge.source);
+                        .insert(&edge.source);
                     false
                 } else {
                     true
@@ -736,17 +738,21 @@ impl<'a> Project<'a> {
                 },
             );
             if let Some(by) = implementers.get(&clause.id) {
-                self.fold_implementers(&mut node, by);
+                self.fold_implementers(&mut node, &by.iter().copied().collect::<Vec<_>>());
             }
             nodes.push(node);
         }
         for id in foreign {
-            // Drawn so the document's edges have somewhere to go, not as part
-            // of it: the product draws a neighbour quieter than the clauses
-            // the picture is of (`node-role-neighbour`).
+            // A clause of another document is drawn so the document's edges
+            // have somewhere to go, not as part of it: the product draws a
+            // neighbour quieter than the clauses the picture is of
+            // (`node-role-neighbour`). A reference nothing resolves is no
+            // neighbour; it is the sign of a broken link and stays as loud.
             let mut node = self.foreign_node(id, true, ROOT_SCOPE.to_owned());
-            node.meta
-                .insert("role".to_owned(), Value::String("neighbour".to_owned()));
+            if !matches!(self.resolve(id), Target::Unresolved) {
+                node.meta
+                    .insert("role".to_owned(), Value::String("neighbour".to_owned()));
+            }
             nodes.push(node);
         }
         let diagram_edges = edges
@@ -1158,6 +1164,14 @@ impl<'a> Project<'a> {
     /// its badges (`3 impl`), and an `Implemented by` fact before its trace,
     /// each link opening the code where it is.
     fn fold_implementers(&self, node: &mut DiagramNode, implementers: &[&NodeId]) {
+        // Both halves or neither: a count with no list would explain nothing.
+        let array = |meta: &mut Map<String, Value>, key: &str| {
+            if !matches!(meta.get(key), Some(Value::Array(_))) {
+                meta.insert(key.to_owned(), Value::Array(Vec::new()));
+            }
+        };
+        array(&mut node.meta, "badges");
+        array(&mut node.meta, "facts");
         if let Some(Value::Array(badges)) = node.meta.get_mut("badges") {
             badges
                 .push(json!({ "text": format!("{} impl", implementers.len()), "tone": "neutral" }));
