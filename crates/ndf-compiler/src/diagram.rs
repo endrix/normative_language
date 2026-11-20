@@ -741,7 +741,13 @@ impl<'a> Project<'a> {
             nodes.push(node);
         }
         for id in foreign {
-            nodes.push(self.foreign_node(id, true, ROOT_SCOPE.to_owned()));
+            // Drawn so the document's edges have somewhere to go, not as part
+            // of it: the product draws a neighbour quieter than the clauses
+            // the picture is of (`node-role-neighbour`).
+            let mut node = self.foreign_node(id, true, ROOT_SCOPE.to_owned());
+            node.meta
+                .insert("role".to_owned(), Value::String("neighbour".to_owned()));
+            nodes.push(node);
         }
         let diagram_edges = edges
             .iter()

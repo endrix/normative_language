@@ -269,6 +269,19 @@ fn a_clause_of_another_document_is_an_external_node_of_its_own_kind() {
     assert_eq!(option.meta["referencedEntityName"], "DOC-OPTIONS");
     assert_eq!(option.meta["instanceName"], "DOC-OPTIONS");
     assert_eq!(option.meta["definitionAnnotations"][0]["name"], "option");
+    // Drawn so the edge has somewhere to go: the product draws it quieter.
+    assert_eq!(option.meta["role"], "neighbour");
+    let own = document
+        .graph
+        .nodes
+        .iter()
+        .filter(|node| node.meta.get("external").is_none() && node.kind != "group")
+        .collect::<Vec<_>>();
+    assert!(!own.is_empty());
+    assert!(
+        own.iter().all(|node| node.meta.get("role").is_none()),
+        "the document's own clauses have no role"
+    );
     let facts = option.meta["facts"].as_array().unwrap();
     assert!(
         facts

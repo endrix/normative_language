@@ -481,6 +481,7 @@
             "file": "<root>/dependency.asl",
             "line": 1
           },
+          "role": "neighbour",
           "source": {
             "file": "<root>/dependency.asl",
             "line": 1
@@ -631,6 +632,7 @@
             "file": "<root>/dependency.asl",
             "line": 2
           },
+          "role": "neighbour",
           "source": {
             "file": "<root>/dependency.asl",
             "line": 2

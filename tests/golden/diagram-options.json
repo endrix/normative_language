@@ -524,6 +524,7 @@
             "file": "<root>/docs/forwarding.md",
             "line": 16
           },
+          "role": "neighbour",
           "source": {
             "file": "<root>/docs/forwarding.md",
             "line": 16

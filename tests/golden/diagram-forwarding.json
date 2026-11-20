@@ -1005,7 +1005,8 @@
           "ndf": {
             "id": "ndf://diagram/MISSING-001",
             "project": "diagram"
-          }
+          },
+          "role": "neighbour"
         },
         "ports": [
           {
@@ -1140,6 +1141,7 @@
             "file": "<root>/docs/options.md",
             "line": 10
           },
+          "role": "neighbour",
           "source": {
             "file": "<root>/docs/options.md",
             "line": 10
