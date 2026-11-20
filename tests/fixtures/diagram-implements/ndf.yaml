@@ -1,0 +1,11 @@
+format_version: "0.2"
+project: implements
+roots:
+  - docs/**/*.md
+id_prefixes:
+  - DOC
+  - SPEC
+  - MODEL
+domains: []
+policies: {}
+dependencies: {}

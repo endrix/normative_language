@@ -282,6 +282,133 @@ fn a_clause_of_another_document_is_an_external_node_of_its_own_kind() {
     );
 }
 
+fn implements_document(name: &str) -> GraphDocument {
+    let root = repository()
+        .join("tests/fixtures/diagram-implements")
+        .canonicalize()
+        .unwrap();
+    let loaded = load_project(&root).unwrap();
+    build_diagram(&DiagramRequest {
+        project_root: &root,
+        manifest: &loaded.manifest,
+        graph: &loaded.graph,
+        dependencies: &loaded.dependencies,
+        file: &root.join(format!("docs/{name}.md")),
+        group: GroupBy::None,
+        workflow: None,
+        view: None,
+    })
+    .unwrap()
+}
+
+#[test]
+fn a_model_link_that_only_implements_is_a_count_on_its_clauses() {
+    let document = implements_document("spec");
+    let ids: BTreeSet<&str> = document
+        .graph
+        .nodes
+        .iter()
+        .map(|node| node.id.as_str())
+        .collect();
+    // The two links that only implement are not drawn; the one that also
+    // depends on a clause is, with both its edges.
+    assert!(!ids.contains("node:scope:root:MODEL-HALT"));
+    assert!(!ids.contains("node:scope:root:MODEL-STAY"));
+    assert!(ids.contains("node:scope:root:MODEL-RESET"));
+    let edge_ends: BTreeSet<(&str, &str)> = document
+        .graph
+        .edges
+        .iter()
+        .map(|edge| (edge.from.as_str(), edge.meta["role"].as_str().unwrap()))
+        .collect();
+    assert!(edge_ends.iter().all(
+        |(from, _): &(&str, &str)| !from.contains("MODEL-HALT") && !from.contains("MODEL-STAY")
+    ));
+    assert!(edge_ends.contains(&("port:node:scope:root:MODEL-RESET:out", "implements")));
+    assert!(edge_ends.contains(&("port:node:scope:root:MODEL-RESET:out", "depends-on")));
+
+    let clause = |id: &str| {
+        document
+            .graph
+            .nodes
+            .iter()
+            .find(|node| node.id == id)
+            .unwrap_or_else(|| panic!("{id} is drawn"))
+    };
+    let badges = |id: &str| -> Vec<String> {
+        clause(id).meta["badges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|badge| badge["text"].as_str().unwrap().to_owned())
+            .collect()
+    };
+    assert_eq!(
+        badges("node:scope:root:SPEC-HALT-001"),
+        ["MUST", "L1", "1 impl"]
+    );
+    // MODEL-RESET is drawn, so it is an edge, not part of the count.
+    assert_eq!(
+        badges("node:scope:root:SPEC-HALT-002"),
+        ["MUST", "L2", "2 impl"]
+    );
+
+    let facts = clause("node:scope:root:SPEC-HALT-002").meta["facts"]
+        .as_array()
+        .unwrap();
+    let labels: Vec<&str> = facts
+        .iter()
+        .map(|fact| fact["label"].as_str().unwrap())
+        .collect();
+    assert_eq!(labels, ["ID", "Kind", "Implemented by", "Trace", "Body"]);
+    let implemented_by = facts[2]["value"].as_str().unwrap();
+    assert_eq!(facts[2]["markdown"], true);
+    let lines: Vec<&str> = implemented_by.lines().collect();
+    assert_eq!(lines.len(), 2);
+    assert!(
+        lines[0].starts_with("- [`src/model.py::Model.halt`]("),
+        "{implemented_by}"
+    );
+    assert!(lines[0].ends_with("src/model.py#L2)"), "{implemented_by}");
+    assert!(
+        lines[1].starts_with("- [`src/model.py::Model.stay`]("),
+        "{implemented_by}"
+    );
+    assert!(lines[1].ends_with("src/model.py#L5)"), "{implemented_by}");
+}
+
+#[test]
+fn the_document_of_the_model_links_draws_them() {
+    let document = implements_document("model");
+    let ids: BTreeSet<&str> = document
+        .graph
+        .nodes
+        .iter()
+        .map(|node| node.id.as_str())
+        .collect();
+    for id in ["MODEL-HALT", "MODEL-STAY", "MODEL-RESET"] {
+        assert!(
+            ids.contains(format!("node:scope:root:{id}").as_str()),
+            "{id}"
+        );
+    }
+    // The clauses they implement are this document's neighbours, drawn.
+    assert!(ids.contains("node:scope:root:SPEC-HALT-002"));
+    let halt = document
+        .graph
+        .nodes
+        .iter()
+        .find(|node| node.id == "node:scope:root:SPEC-HALT-002")
+        .unwrap();
+    assert!(
+        halt.meta["badges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|badge| !badge["text"].as_str().unwrap().ends_with(" impl"))
+    );
+}
+
 #[test]
 fn a_conflict_is_undirected_and_a_dangling_mandatory_edge_reddens_its_clause() {
     let document = fixture_document("forwarding");

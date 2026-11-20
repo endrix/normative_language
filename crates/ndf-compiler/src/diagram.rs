@@ -697,18 +697,48 @@ impl<'a> Project<'a> {
             }
         }
 
+        // A model link of another document that only implements clauses of
+        // this one is not a node of its own: there can be a dozen per
+        // document, each a card, and they buried the clauses. Each clause it
+        // implements counts it and lists it in the panel, linked to the code.
+        let folded: BTreeSet<&NodeId> = foreign
+            .iter()
+            .copied()
+            .filter(|id| self.implements_only(id, &edges, &clause_ids))
+            .collect();
+        let mut implementers: BTreeMap<&NodeId, Vec<&NodeId>> = BTreeMap::new();
+        let edges: Vec<&Edge> = edges
+            .into_iter()
+            .filter(|edge| {
+                if folded.contains(&edge.source) {
+                    implementers
+                        .entry(&edge.target)
+                        .or_default()
+                        .push(&edge.source);
+                    false
+                } else {
+                    true
+                }
+            })
+            .collect();
+        foreign.retain(|id| !folded.contains(id));
+
         let mut nodes = Vec::with_capacity(clauses.len() + foreign.len());
         let mut scopes = Scopes::default();
         for clause in &clauses {
             let scope = scopes.place(clause, group, self.id);
-            nodes.push(self.clause_node(
+            let mut node = self.clause_node(
                 clause,
                 scope,
                 Placement {
                     external: false,
                     navigate: None,
                 },
-            ));
+            );
+            if let Some(by) = implementers.get(&clause.id) {
+                self.fold_implementers(&mut node, by);
+            }
+            nodes.push(node);
         }
         for id in foreign {
             nodes.push(self.foreign_node(id, true, ROOT_SCOPE.to_owned()));
@@ -1093,6 +1123,70 @@ impl<'a> Project<'a> {
             ports: pins(&id),
             meta,
             id,
+        }
+    }
+
+    /// Whether `id`, outside the document, is a model link (`source`) whose
+    /// every edge in the document is an `implements` into one of its clauses.
+    fn implements_only(
+        &self,
+        id: &NodeId,
+        edges: &[&Edge],
+        clause_ids: &BTreeSet<&NodeId>,
+    ) -> bool {
+        let is_source = self
+            .find_node(id)
+            .is_some_and(|(_, node)| node.kind == NodeKind::Source);
+        is_source
+            && edges
+                .iter()
+                .filter(|edge| &edge.source == id || &edge.target == id)
+                .all(|edge| {
+                    &edge.source == id
+                        && edge.edge_type == "implements"
+                        && clause_ids.contains(&edge.target)
+                })
+    }
+
+    /// Put the model links folded into a clause on its node: a count among
+    /// its badges (`3 impl`), and an `Implemented by` fact before its trace,
+    /// each link opening the code where it is.
+    fn fold_implementers(&self, node: &mut DiagramNode, implementers: &[&NodeId]) {
+        if let Some(Value::Array(badges)) = node.meta.get_mut("badges") {
+            badges
+                .push(json!({ "text": format!("{} impl", implementers.len()), "tone": "neutral" }));
+        }
+        let lines: Vec<String> = implementers
+            .iter()
+            .map(|id| match self.find_node(id) {
+                Some((_, model)) => {
+                    let title = title_of(model);
+                    let name = title.trim().trim_matches('`');
+                    match self.open_target(model).as_ref().and_then(|open| {
+                        let file = open["file"].as_str()?;
+                        let place = open["line"]
+                            .as_u64()
+                            .map(|line| format!("#L{line}"))
+                            .unwrap_or_default();
+                        Some(format!("{}{place}", link_path(Path::new(file))))
+                    }) {
+                        Some(href) => format!("- [`{name}`]({href})"),
+                        None => format!("- `{name}`"),
+                    }
+                }
+                None => format!("- `{}`", id.local_id()),
+            })
+            .collect();
+        let fact =
+            json!({ "label": "Implemented by", "value": lines.join("\n"), "markdown": true });
+        if let Some(Value::Array(facts)) = node.meta.get_mut("facts") {
+            let at = facts
+                .iter()
+                .position(|fact| {
+                    matches!(fact["label"].as_str(), Some("Trace" | "Body" | "Contract"))
+                })
+                .unwrap_or(facts.len());
+            facts.insert(at, fact);
         }
     }
 
