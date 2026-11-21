@@ -1006,6 +1006,47 @@ fn sidecar_mutations_round_trip_on_a_copy_of_the_fixture() {
     );
     assert_eq!(twice["diagnostic"]["code"], "edge_exists");
 
+    // Drawn as a document's diagram draws it, from the intent to the detail:
+    // the detail declares it. A verification from its clause to its test.
+    let verified = sidecar(
+        root,
+        request(
+            "connect",
+            serde_json::json!({
+                "from_port": "FWD-ADM-002.out", "to_port": "VER-ADM-001.in", "role": "verifies"
+            }),
+        ),
+    );
+    assert_eq!(verified["status"], "ok", "{verified}");
+    assert_eq!(verified["diagnostic"]["source"], "VER-ADM-001");
+    assert_eq!(verified["diagnostic"]["target"], "FWD-ADM-002");
+    // Removed the way it is drawn too.
+    let unverified = sidecar(
+        root,
+        request(
+            "deleteEdge",
+            serde_json::json!({
+                "from_expr": "FWD-ADM-002.out", "to_expr": "VER-ADM-001.in", "role": "verifies"
+            }),
+        ),
+    );
+    assert_eq!(unverified["status"], "ok", "{unverified}");
+    assert_eq!(unverified["diagnostic"]["source"], "VER-ADM-001");
+    // A detail written in another document declares it there, not here.
+    let elsewhere = sidecar(
+        root,
+        request(
+            "connect",
+            serde_json::json!({
+                "from_port": "FWD-ADM-003.out", "to_port": "PRM-BUF-001.in", "role": "refines"
+            }),
+        ),
+    );
+    assert_eq!(
+        elsewhere["diagnostic"]["code"], "declared_elsewhere",
+        "{elsewhere}"
+    );
+
     // A field; a value the parser refuses leaves the file as it was.
     let set = sidecar(
         root,
@@ -1129,14 +1170,15 @@ fn sidecar_mutations_round_trip_on_a_copy_of_the_fixture() {
     );
     assert_eq!(unknown["diagnostic"]["code"], "node_not_found");
 
-    // What is left is the original with the dangling edge gone (its line in
-    // the canonical order an edit writes), and the project checks clean: the
-    // clause that was added and removed left no trace.
+    // What is left is the original with the dangling edge gone, and the
+    // project checks clean: the clause that was added and removed left no
+    // trace. The lines an edit touched are in the canonical order it writes:
+    // the dangling edge's and the test's, whose verification came and went.
     let final_text = fs::read_to_string(&file).unwrap();
     let expected: String = original
         .split_inclusive('\n')
         .map(|line| {
-            if !line.contains("depends-on=MISSING-001") {
+            if !line.contains("depends-on=MISSING-001") && !line.contains("verifies=FWD-ADM-001") {
                 return line.to_owned();
             }
             let inner = line

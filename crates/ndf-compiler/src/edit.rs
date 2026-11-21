@@ -18,6 +18,7 @@ use std::fmt;
 use ndf_core::model::{DiagnosticSeverity, Graph, NodeKind};
 use serde_json::{Value, json};
 
+use crate::diagram::{LADDER_EDGE_TYPES, layer_rank};
 use crate::fix::sort_metadata_line;
 use crate::id_allocator::allocate_id;
 use crate::manifest::ProjectManifest;
@@ -731,6 +732,43 @@ pub fn verify(
         }
     }
     Ok(())
+}
+
+/// Which end of a connection drawn from `from` to `to` declares it.
+///
+/// A document's diagram draws the edge types whose source is the more
+/// detailed end (`LADDER_EDGE_TYPES`: the refiner, the verifier, the
+/// implementer) from the intent to the detail. A connection of one of them
+/// drawn that way (to a higher layer, or within one) reads back the other
+/// way round: its drawn target declares it ("LAD-002 refines LAD-001" for a
+/// line drawn from LAD-001 to LAD-002). Drawn from a higher layer to a lower
+/// one, and for any other type or an end with no layer, the drawn source
+/// declares it, as it always has.
+pub fn declaring_end(graph: &Graph, project: &str, role: &str, from: &str, to: &str) -> Declarer {
+    if !LADDER_EDGE_TYPES.contains(&role) {
+        return Declarer::From;
+    }
+    let layer = |name: &str| -> Option<u32> {
+        let id = resolve_target(graph, project, name).ok()?;
+        graph
+            .nodes
+            .iter()
+            .find(|node| node.id.project_id() == project && node.id.local_id() == id)?
+            .refinement
+            .as_deref()
+            .and_then(layer_rank)
+    };
+    match (layer(from), layer(to)) {
+        (Some(from), Some(to)) if from <= to => Declarer::To,
+        _ => Declarer::From,
+    }
+}
+
+/// The end of a drawn connection whose clause declares it (`declaring_end`).
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum Declarer {
+    From,
+    To,
 }
 
 /// The names a consumer's endpoint argument may take: `{ actor, port }`,

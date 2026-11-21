@@ -13,7 +13,10 @@
 //! `createNode` (a clause of `type` titled `name`, its id allocated),
 //! `renameNode` (the title; the id never changes), `deleteNode` (refused
 //! while any edge of the project targets the clause), `connect` and
-//! `deleteEdge` (an entry of `role` in the source clause's metadata),
+//! `deleteEdge` (an entry of `role` in the declaring clause's metadata: the
+//! source's, or for a refinement, a verification or an implementation drawn
+//! from the intent to the detail, as a document's diagram draws them, the
+//! detail's; see `declaring_end`),
 //! `updateNodeParameter` (a canonical or attribute field). A mutation with
 //! `args.expectedRevision` is refused when the file's revision differs
 //! (`concurrent_source_modification`). Every result is re-parsed before it is
@@ -32,9 +35,9 @@ use ndf_compiler::diagram::{
     failure_document,
 };
 use ndf_compiler::edit::{
-    CLAUSE_KINDS, DEFAULT_EDGE_ROLE, Document, EditError, add_target, allocate_clause_id,
-    dependents, edge_roles_value, endpoint_name, new_clause_fields, remove_target, resolve_target,
-    set_field, verify,
+    CLAUSE_KINDS, DEFAULT_EDGE_ROLE, Declarer, Document, EditError, add_target, allocate_clause_id,
+    declaring_end, dependents, edge_roles_value, endpoint_name, new_clause_fields, remove_target,
+    resolve_target, set_field, verify,
 };
 use ndf_compiler::project::{LoadedProject, find_project_root, load_project};
 use ndf_core::model::NodeKind;
@@ -464,23 +467,58 @@ fn mutate(file: &Path, op: &str, args: &Map<String, Value>) -> Result<Value, Edi
                 let to = to
                     .and_then(endpoint_name)
                     .ok_or_else(|| missing("to_port"))?;
-                let span = document.find(&from)?.clone();
-                let target = resolve_target(graph, &manifest.project, &to)?;
-                let mut fields = document.metadata(&span);
                 let role = text("role").or_else(|| text("type"));
+                // The edit, declared by `declarer`'s clause, naming `target`.
+                let edit = |declarer: &str, target: &str| -> Result<(Document, Value), EditError> {
+                    let span = document.find(declarer)?.clone();
+                    let target = resolve_target(graph, &manifest.project, target)?;
+                    let mut fields = document.metadata(&span);
+                    if op == "connect" {
+                        let role = role.unwrap_or(DEFAULT_EDGE_ROLE);
+                        add_target(&mut fields, role, &target)?;
+                        Ok((
+                            document.with_metadata(&span, &fields),
+                            json!({ "source": span.local_id, "target": target, "role": role }),
+                        ))
+                    } else {
+                        remove_target(&mut fields, role, &target)?;
+                        Ok((
+                            document.with_metadata(&span, &fields),
+                            json!({ "source": span.local_id, "target": target }),
+                        ))
+                    }
+                };
                 if op == "connect" {
+                    // A document's diagram draws a refinement from what is
+                    // refined to its refiner: a line drawn that way is the
+                    // refiner's to declare (`declaring_end`).
                     let role = role.unwrap_or(DEFAULT_EDGE_ROLE);
-                    add_target(&mut fields, role, &target)?;
-                    (
-                        document.with_metadata(&span, &fields),
-                        json!({ "source": span.local_id, "target": target, "role": role }),
-                    )
+                    match declaring_end(graph, &manifest.project, role, &from, &to) {
+                        Declarer::From => edit(&from, &to)?,
+                        Declarer::To => edit(&to, &from).map_err(|error| {
+                            if error.code == "node_not_found" {
+                                EditError {
+                                    code: "declared_elsewhere",
+                                    message: format!(
+                                        "the connection reads \"{to} {role} {from}\": {to} declares it, and {to} is not a clause of this document; add `{role}={from}` to {to} where it is written"
+                                    ),
+                                    details: json!({ "declarer": to, "target": from, "role": role }),
+                                }
+                            } else {
+                                error
+                            }
+                        })?,
+                    }
                 } else {
-                    remove_target(&mut fields, role, &target)?;
-                    (
-                        document.with_metadata(&span, &fields),
-                        json!({ "source": span.local_id, "target": target }),
-                    )
+                    // Whichever end declares it: a line drawn from the intent
+                    // to the detail is declared by the detail.
+                    match edit(&from, &to) {
+                        Ok(done) => done,
+                        Err(first) if matches!(first.code, "edge_not_found" | "node_not_found") => {
+                            edit(&to, &from).map_err(|_| first)?
+                        }
+                        Err(error) => return Err(error),
+                    }
                 }
             }
             "updateNodeParameter" => {
