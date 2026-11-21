@@ -47,11 +47,27 @@ pub const CLAUSE_KINDS: &[&str] = &[
 /// The typed edges a clause may declare, with a label for a picker, in the
 /// order a reader meets them: structure first, then evidence, then the
 /// record-keeping and cross-project ones.
+///
+/// The ladder's types (`LADDER_EDGE_TYPES`) say which end declares them by
+/// layer, not by the way the line was drawn: a document's diagram draws them
+/// from the intent to the detail, and a connection drawn either way is the
+/// more detailed clause's to declare (`declaring_end`; in one layer, the one
+/// drawn to). "This clause narrows the target" read backwards for a line
+/// drawn the way the diagram draws it.
 pub const EDGE_ROLES: &[(&str, &str)] = &[
-    ("refines", "Refines: this clause narrows the target"),
+    (
+        "refines",
+        "Refines: the more detailed clause narrows the other",
+    ),
     ("depends-on", "Depends on: this clause needs the target"),
-    ("implements", "Implements: this clause realises the target"),
-    ("verifies", "Verifies: this clause checks the target"),
+    (
+        "implements",
+        "Implements: the more detailed clause realises the other",
+    ),
+    (
+        "verifies",
+        "Verifies: the more detailed clause checks the other",
+    ),
     (
         "evidenced-by",
         "Evidenced by: the target records a result for this clause",
