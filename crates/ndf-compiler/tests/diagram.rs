@@ -84,7 +84,14 @@ fn every_edge_names_a_port_of_a_node_in_the_document() {
     for edge in &document.graph.edges {
         assert!(ports.contains(&edge.from.as_str()), "{}", edge.from);
         assert!(ports.contains(&edge.to.as_str()), "{}", edge.to);
-        assert_eq!(edge.meta["role"], edge.meta["label"]);
+        // Its type, or how it reads drawn from the intent to the detail.
+        let label = edge.meta["label"].as_str().unwrap();
+        assert!(
+            edge.meta["role"] == label
+                || label.ends_with(" by")
+                || label.starts_with("refines, from"),
+            "{label}"
+        );
     }
     let ids: Vec<&str> = document
         .graph
@@ -441,13 +448,16 @@ fn a_conflict_is_undirected_and_a_dangling_mandatory_edge_reddens_its_clause() {
         .find(|edge| edge.meta["role"] == "conflicts-with")
         .unwrap();
     assert_eq!(conflict.meta["undirected"], true);
+    // A refinement drawn from what it refines has no arrowhead either: the
+    // layers say which end is which. Nothing else is undirected.
     assert!(
         document
             .graph
             .edges
             .iter()
             .filter(|edge| edge.meta["role"] != "conflicts-with")
-            .all(|edge| edge.meta.get("undirected").is_none())
+            .all(|edge| edge.meta.get("undirected").is_none()
+                || (edge.meta["role"] == "refines" && edge.meta["label"] == "refined by"))
     );
 
     let clause = document
@@ -520,7 +530,8 @@ fn grouped_document(name: &str, group: GroupBy) -> ndf_compiler::diagram::GraphD
 }
 
 #[test]
-fn grouping_by_refinement_puts_each_clause_in_its_layer_and_leaves_foreign_nodes_at_the_root() {
+fn grouping_by_refinement_puts_each_clause_in_its_layer_a_neighbour_too_and_a_broken_reference_at_the_root()
+ {
     let root = diagram_fixture_root();
     let document = grouped_document("forwarding", GroupBy::Refinement);
     let expected: Value = serde_json::from_str(
@@ -544,9 +555,10 @@ fn grouping_by_refinement_puts_each_clause_in_its_layer_and_leaves_foreign_nodes
     assert_eq!(
         scopes,
         [
-            ("scope:group:L0", "L0", 1),
-            ("scope:group:L1", "L1", 2),
-            ("scope:group:L3", "L3", 1)
+            ("scope:group:L0", "L0 · intent", 1),
+            ("scope:group:L1", "L1 · contract", 2),
+            ("scope:group:L2", "L2 · mechanism", 1),
+            ("scope:group:L3", "L3 · executable", 1)
         ]
     );
     assert!(
@@ -573,10 +585,171 @@ fn grouping_by_refinement_puts_each_clause_in_its_layer_and_leaves_foreign_nodes
     );
     assert_eq!(
         scope_of("node:scope:root:PRM-BUF-001"),
-        "scope:root",
-        "foreign clauses stay at the root"
+        "scope:group:L2",
+        "a neighbour stands in its layer"
     );
-    assert_eq!(scope_of("node:scope:root:MISSING-001"), "scope:root");
+    assert_eq!(
+        scope_of("node:scope:root:MISSING-001"),
+        "scope:root",
+        "a reference nothing resolves has no layer"
+    );
+}
+
+fn ladder_document(group: GroupBy) -> GraphDocument {
+    let root = repository()
+        .join("tests/fixtures/diagram-ladder")
+        .canonicalize()
+        .unwrap();
+    let loaded = load_project(&root).unwrap();
+    build_diagram(&DiagramRequest {
+        project_root: &root,
+        manifest: &loaded.manifest,
+        graph: &loaded.graph,
+        dependencies: &loaded.dependencies,
+        file: &root.join("docs/ladder.md"),
+        group,
+        workflow: None,
+        view: None,
+    })
+    .unwrap()
+}
+
+#[test]
+fn a_document_by_refinement_is_a_ladder_of_its_layers_its_neighbours_in_theirs() {
+    let document = ladder_document(GroupBy::Refinement);
+    let frames: Vec<(&str, Option<u32>, Vec<&str>)> = document
+        .graph
+        .subgraphs
+        .iter()
+        .map(|scope| {
+            (
+                scope.label.as_str(),
+                scope.rank,
+                scope
+                    .nodes
+                    .iter()
+                    .map(|id| id.rsplit(':').next().unwrap())
+                    .collect(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        frames,
+        [
+            ("L0 · intent", Some(0), vec!["LAD-000"]),
+            ("L1 · contract", Some(1), vec!["LAD-001"]),
+            // The document's own clause first, its neighbours after it.
+            (
+                "L2 · mechanism",
+                Some(2),
+                vec!["LAD-002", "NEI-001", "NEI-002"]
+            ),
+            ("L3 · executable", Some(3), vec!["LAD-003"]),
+        ]
+    );
+    let node = |id: &str| {
+        document
+            .graph
+            .nodes
+            .iter()
+            .find(|node| node.id == format!("node:scope:root:{id}"))
+            .unwrap()
+    };
+    assert_eq!(node("Q-001").scope, "scope:root", "no layer, no rung");
+    assert_eq!(node("NEI-001").meta["role"], "neighbour");
+}
+
+#[test]
+fn a_document_draws_its_edges_from_the_intent_to_the_detail() {
+    for group in [GroupBy::Refinement, GroupBy::None] {
+        let document = ladder_document(group);
+        let edge = |source: &str, target: &str, role: &str| {
+            let id = format!(
+                "edge:port:node:scope:root:{source}:out->port:node:scope:root:{target}:in:{role}"
+            );
+            document
+                .graph
+                .edges
+                .iter()
+                .find(|edge| edge.id == id)
+                .unwrap_or_else(|| panic!("{id}"))
+        };
+        let ends = |edge: &ndf_compiler::diagram::DiagramEdge| {
+            (
+                edge.from.split(':').nth_back(1).unwrap().to_owned(),
+                edge.to.split(':').nth_back(1).unwrap().to_owned(),
+            )
+        };
+
+        // Refined by: from what is refined to its refiner, no arrowhead. The
+        // edge keeps its id and its role: edits read them.
+        let refines = edge("LAD-002", "LAD-001", "refines");
+        assert_eq!(ends(refines), ("LAD-001".to_owned(), "LAD-002".to_owned()));
+        assert_eq!(refines.meta["role"], "refines");
+        assert_eq!(refines.meta["label"], "refined by");
+        assert_eq!(refines.meta["undirected"], true);
+
+        // Verified by: from the clause to its test, an arrow still.
+        let verifies = edge("LAD-003", "LAD-001", "verifies");
+        assert_eq!(ends(verifies), ("LAD-001".to_owned(), "LAD-003".to_owned()));
+        assert_eq!(verifies.meta["label"], "verified by");
+        assert!(verifies.meta.get("undirected").is_none());
+
+        // An L1 clause refining an L2 one runs against the layers: drawn as
+        // declared, as a warning.
+        let upside_down = edge("LAD-001", "NEI-002", "refines");
+        assert_eq!(
+            ends(upside_down),
+            ("LAD-001".to_owned(), "NEI-002".to_owned())
+        );
+        assert_eq!(upside_down.meta["tone"], "warning");
+        assert_eq!(upside_down.meta["label"], "refines, from L1 to L2");
+        assert!(upside_down.meta.get("undirected").is_none());
+
+        // Other types, and an end with no layer, stay as declared.
+        let depends = edge("LAD-002", "NEI-001", "depends-on");
+        assert_eq!(ends(depends), ("LAD-002".to_owned(), "NEI-001".to_owned()));
+        assert_eq!(depends.meta["label"], "depends-on");
+        let blocks = edge("Q-001", "LAD-002", "blocks");
+        assert_eq!(ends(blocks), ("Q-001".to_owned(), "LAD-002".to_owned()));
+        assert!(
+            document
+                .graph
+                .edges
+                .iter()
+                .all(|edge| edge.meta.get("tone").is_none() || edge.id == upside_down.id)
+        );
+    }
+}
+
+#[test]
+fn a_clause_of_the_document_carries_its_rule_and_a_neighbour_its_title_only() {
+    let document = ladder_document(GroupBy::Refinement);
+    let summary = |id: &str| {
+        document
+            .graph
+            .nodes
+            .iter()
+            .find(|node| node.id == format!("node:scope:root:{id}"))
+            .unwrap()
+            .meta
+            .get("summary")
+            .cloned()
+    };
+    assert_eq!(
+        summary("LAD-001"),
+        Some(Value::String(
+            "Entering the trap state MUST stop the machine permanently: the state is absorbing, and only reset leaves it.".to_owned()
+        ))
+    );
+    assert_eq!(
+        summary("LAD-002"),
+        Some(Value::String(
+            "A one-bit register `halted` MUST hold the halt; see the state.".to_owned()
+        ))
+    );
+    assert_eq!(summary("Q-001"), None, "no modal word, no rule");
+    assert_eq!(summary("NEI-001"), None, "a neighbour is its title");
 }
 
 #[test]

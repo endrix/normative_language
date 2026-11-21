@@ -40,6 +40,7 @@ use crate::diagram_links::{
     symbol_line,
 };
 use crate::manifest::ProjectManifest;
+use crate::rule_sentence::rule_sentence;
 
 /// The document version the platform's reader expects.
 pub const DOCUMENT_VERSION: &str = "1.0";
@@ -60,6 +61,36 @@ pub const VIEWS: &[(&str, &str)] = &[
 
 /// Edge types whose direction carries no meaning, drawn without an arrowhead.
 const UNDIRECTED_EDGE_TYPES: &[&str] = &["conflicts-with", "couples-with"];
+
+/// The edge types whose source is, by definition, the more detailed end: the
+/// refiner, the verifier, the implementer. A document's diagram draws them
+/// from the intent to the detail, the way its layers run (`ladder_edge`); the
+/// sidecar reads a connection of one of them drawn that way back.
+pub const LADDER_EDGE_TYPES: &[&str] = &["refines", "verifies", "implements"];
+
+/// The default names of the refinement layers (NDF section 4.6).
+const LAYER_NAMES: &[(&str, &str)] = &[
+    ("L0", "intent"),
+    ("L1", "contract"),
+    ("L2", "mechanism"),
+    ("L3", "executable"),
+];
+
+/// Where a refinement layer stands on the ladder: `L<n>` is `n`; a layer a
+/// project names otherwise has no place.
+pub fn layer_rank(refinement: &str) -> Option<u32> {
+    refinement.strip_prefix('L')?.parse().ok()
+}
+
+/// How an edge of `LADDER_EDGE_TYPES` reads from its target, as it is drawn.
+fn ladder_caption(edge_type: &str) -> String {
+    match edge_type {
+        "refines" => "refined by".to_owned(),
+        "verifies" => "verified by".to_owned(),
+        "implements" => "implemented by".to_owned(),
+        other => format!("{other} (from)"),
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct GraphDocument {
@@ -271,6 +302,10 @@ pub struct DiagramScope {
     pub kind: &'static str,
     pub label: String,
     pub nodes: Vec<String>,
+    /// Where the frame stands along the flow: a document's refinement layers
+    /// as a ladder, L0 first (the platform's ranks).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rank: Option<u32>,
 }
 
 /// A short mark on a node's header.
@@ -740,6 +775,10 @@ impl<'a> Project<'a> {
             if let Some(by) = implementers.get(&clause.id) {
                 self.fold_implementers(&mut node, &by.iter().copied().collect::<Vec<_>>());
             }
+            // What the clause obliges, in its own sentence, on its card.
+            if let Some(rule) = rule_sentence(&clause.body) {
+                node.meta.insert("summary".to_owned(), Value::String(rule));
+            }
             nodes.push(node);
         }
         for id in foreign {
@@ -748,16 +787,32 @@ impl<'a> Project<'a> {
             // neighbour quieter than the clauses the picture is of
             // (`node-role-neighbour`). A reference nothing resolves is no
             // neighbour; it is the sign of a broken link and stays as loud.
-            let mut node = self.foreign_node(id, true, ROOT_SCOPE.to_owned());
-            if !matches!(self.resolve(id), Target::Unresolved) {
+            // On the ladder a neighbour stands in its layer, beside the
+            // document's own clauses of that layer.
+            let resolved = self.resolved_node(id);
+            let scope = match resolved {
+                Some(node) if group == GroupBy::Refinement => scopes.place(node, group, self.id),
+                _ => ROOT_SCOPE.to_owned(),
+            };
+            let mut node = self.foreign_node(id, true, scope);
+            if resolved.is_some() {
                 node.meta
                     .insert("role".to_owned(), Value::String("neighbour".to_owned()));
             }
             nodes.push(node);
         }
+        if group == GroupBy::Refinement {
+            scopes.rank_layers();
+        }
+        let layer_of = |id: &NodeId| -> Option<&str> {
+            match clauses.iter().find(|clause| &clause.id == id) {
+                Some(clause) => clause.refinement.as_deref(),
+                None => self.resolved_node(id)?.refinement.as_deref(),
+            }
+        };
         let diagram_edges = edges
             .iter()
-            .map(|edge| self.diagram_edge(edge, None))
+            .map(|edge| self.ladder_edge(edge, layer_of(&edge.source), layer_of(&edge.target)))
             .collect();
 
         let mut meta = self.unit_meta(
@@ -1404,6 +1459,59 @@ impl<'a> Project<'a> {
     }
 
     // -- edges, diagnostics, meta --------------------------------------------
+
+    /// An edge of a document's diagram, drawn the way its layers run: one of
+    /// `LADDER_EDGE_TYPES` from the intent to the detail (from what is
+    /// refined to its refiner, "refined by"), a refinement with no arrowhead,
+    /// since the layers say which end is which. A refinement declared from a
+    /// lower layer to a higher one runs against them (NDF: a clause is
+    /// refined by higher-numbered clauses): it is drawn as declared, as a
+    /// warning. Edges of other types, and ends with no layer, stay as
+    /// declared. The edge keeps its id and its role: edits read them.
+    fn ladder_edge(&self, edge: &Edge, source: Option<&str>, target: Option<&str>) -> DiagramEdge {
+        let mut drawn = self.diagram_edge(edge, None);
+        if !LADDER_EDGE_TYPES.contains(&edge.edge_type.as_str()) {
+            return drawn;
+        }
+        let (Some(source), Some(target)) = (source, target) else {
+            return drawn;
+        };
+        let (Some(from), Some(to)) = (layer_rank(source), layer_rank(target)) else {
+            return drawn;
+        };
+        if from < to {
+            if edge.edge_type == "refines" {
+                drawn
+                    .meta
+                    .insert("tone".to_owned(), Value::String("warning".to_owned()));
+                drawn.meta.insert(
+                    "label".to_owned(),
+                    Value::String(format!("refines, from {source} to {target}")),
+                );
+            }
+            return drawn;
+        }
+        drawn.from = port_id(&node_id(&edge.target, self.id), "out");
+        drawn.to = port_id(&node_id(&edge.source, self.id), "in");
+        drawn.meta.insert(
+            "label".to_owned(),
+            Value::String(ladder_caption(&edge.edge_type)),
+        );
+        if edge.edge_type == "refines" {
+            drawn
+                .meta
+                .insert("undirected".to_owned(), Value::Bool(true));
+        }
+        drawn
+    }
+
+    /// The clause a reference resolves to, here or in a dependency.
+    fn resolved_node(&self, id: &NodeId) -> Option<&Node> {
+        match self.resolve(id) {
+            Target::Local { node, .. } | Target::Dependency { node, .. } => Some(node),
+            Target::Unresolved => None,
+        }
+    }
 
     fn diagram_edge(&self, edge: &Edge, scope: Option<&str>) -> DiagramEdge {
         let from = port_id(&node_id(&edge.source, self.id), "out");
@@ -2070,12 +2178,28 @@ impl Scopes {
                         kind: "group",
                         label: key,
                         nodes: Vec::new(),
+                        rank: None,
                     })
                     .nodes
                     .push(node_id(&clause.id, project));
                 id
             }
             None => ROOT_SCOPE.to_owned(),
+        }
+    }
+
+    /// The refinement layers as a ladder: each frame ranked along the flow,
+    /// L0 first, a layer the project names otherwise after them in name
+    /// order, and titled with what the layer is ("L1 · contract").
+    fn rank_layers(&mut self) {
+        let mut keys: Vec<String> = self.scopes.keys().cloned().collect();
+        keys.sort_by_key(|key| (layer_rank(key).unwrap_or(u32::MAX), key.clone()));
+        for (rank, key) in keys.iter().enumerate() {
+            let scope = self.scopes.get_mut(key).expect("a key of the scopes");
+            scope.rank = Some(rank as u32);
+            if let Some((_, name)) = LAYER_NAMES.iter().find(|(layer, _)| layer == key) {
+                scope.label = format!("{key} · {name}");
+            }
         }
     }
 

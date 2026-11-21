@@ -17,6 +17,7 @@ pub mod project;
 pub mod pto_impact;
 pub mod query;
 pub mod report;
+pub mod rule_sentence;
 pub mod rules;
 
 use std::path::PathBuf;

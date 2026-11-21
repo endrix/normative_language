@@ -26,18 +26,19 @@
         "to": "port:node:scope:root:PRM-BUF-001:in"
       },
       {
-        "from": "port:node:scope:root:FWD-ADM-001:out",
+        "from": "port:node:scope:root:FWD-ADM-000:out",
         "id": "edge:port:node:scope:root:FWD-ADM-001:out->port:node:scope:root:FWD-ADM-000:in:refines",
         "meta": {
-          "label": "refines",
-          "role": "refines"
+          "label": "refined by",
+          "role": "refines",
+          "undirected": true
         },
         "scope": "scope:root",
         "source": {
           "file": "<root>/docs/forwarding.md",
           "line": 17
         },
-        "to": "port:node:scope:root:FWD-ADM-000:in"
+        "to": "port:node:scope:root:FWD-ADM-001:in"
       },
       {
         "from": "port:node:scope:root:FWD-ADM-002:out",
@@ -83,10 +84,10 @@
         "to": "port:node:scope:root:FWD-ADM-002:in"
       },
       {
-        "from": "port:node:scope:root:VER-ADM-001:out",
+        "from": "port:node:scope:root:FWD-ADM-001:out",
         "id": "edge:port:node:scope:root:VER-ADM-001:out->port:node:scope:root:FWD-ADM-001:in:verifies",
         "meta": {
-          "label": "verifies",
+          "label": "verified by",
           "role": "verifies"
         },
         "scope": "scope:root",
@@ -94,7 +95,7 @@
           "file": "<root>/docs/forwarding.md",
           "line": 33
         },
-        "to": "port:node:scope:root:FWD-ADM-001:in"
+        "to": "port:node:scope:root:VER-ADM-001:in"
       }
     ],
     "id": "wf:DOC-FORWARDING",
@@ -429,6 +430,7 @@
             "file": "<root>/docs/forwarding.md",
             "line": 16
           },
+          "summary": "A frame MUST be admitted only if it passes FCS validation and fits the admission buffer.",
           "views": [
             {
               "id": "refines",
@@ -612,6 +614,7 @@
             "file": "<root>/docs/forwarding.md",
             "line": 22
           },
+          "summary": "Under back pressure the switch SHOULD admit every frame and defer the check.",
           "views": [
             {
               "id": "refines",
@@ -938,6 +941,7 @@
             "file": "<root>/docs/forwarding.md",
             "line": 32
           },
+          "summary": "A directed test MUST present one malformed frame per thousand and observe every one of them dropped.",
           "views": [
             {
               "id": "refines",
@@ -1172,7 +1176,7 @@
             "name": "out"
           }
         ],
-        "scope": "scope:root",
+        "scope": "scope:group:L2",
         "type": "PRM-BUF-001"
       }
     ],
@@ -1180,27 +1184,39 @@
       {
         "id": "scope:group:L0",
         "kind": "group",
-        "label": "L0",
+        "label": "L0 · intent",
         "nodes": [
           "node:scope:root:FWD-ADM-000"
-        ]
+        ],
+        "rank": 0
       },
       {
         "id": "scope:group:L1",
         "kind": "group",
-        "label": "L1",
+        "label": "L1 · contract",
         "nodes": [
           "node:scope:root:FWD-ADM-001",
           "node:scope:root:FWD-ADM-002"
-        ]
+        ],
+        "rank": 1
+      },
+      {
+        "id": "scope:group:L2",
+        "kind": "group",
+        "label": "L2 · mechanism",
+        "nodes": [
+          "node:scope:root:PRM-BUF-001"
+        ],
+        "rank": 2
       },
       {
         "id": "scope:group:L3",
         "kind": "group",
-        "label": "L3",
+        "label": "L3 · executable",
         "nodes": [
           "node:scope:root:VER-ADM-001"
-        ]
+        ],
+        "rank": 3
       }
     ]
   },

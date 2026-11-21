@@ -20,18 +20,19 @@
   "graph": {
     "edges": [
       {
-        "from": "port:node:scope:root:PIPE-ISSUE-010:out",
+        "from": "port:node:scope:root:PIPE-ISSUE-001:out",
         "id": "edge:port:node:scope:root:PIPE-ISSUE-010:out->port:node:scope:root:PIPE-ISSUE-001:in:refines",
         "meta": {
-          "label": "refines",
-          "role": "refines"
+          "label": "refined by",
+          "role": "refines",
+          "undirected": true
         },
         "scope": "scope:root",
         "source": {
           "file": "<root>/docs/pipeline.md",
           "line": 20
         },
-        "to": "port:node:scope:root:PIPE-ISSUE-001:in"
+        "to": "port:node:scope:root:PIPE-ISSUE-010:in"
       },
       {
         "from": "port:node:scope:root:PIPE-PTO-001:out",
@@ -233,6 +234,7 @@
             "file": "<root>/docs/pipeline.md",
             "line": 14
           },
+          "summary": "The core MUST issue no more than two instructions per cycle.",
           "views": [
             {
               "id": "refines",
@@ -403,6 +405,7 @@
             "file": "<root>/docs/pipeline.md",
             "line": 19
           },
+          "summary": "Two issue slots MUST arbitrate oldest-ready first.",
           "views": [
             {
               "id": "refines",
@@ -582,6 +585,7 @@
             "file": "<root>/docs/pipeline.md",
             "line": 24
           },
+          "summary": "The pipeline MUST preserve the PTO load contract.",
           "views": [
             {
               "id": "refines",
